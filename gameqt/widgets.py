@@ -12,6 +12,8 @@ class QWidget(QObject):
         from .widgets import QMainWindow
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
     def resize(self, w, h): self._rect.width, self._rect.height = w, h
+    def setMinimumSize(self, w, h): pass
+    def setCursor(self, cursor): pass
     def setCentralWidget(self, widget):
         widget._set_parent(self); widget.show()
         widget._rect = pygame.Rect(0, 0, self._rect.width, self._rect.height)
