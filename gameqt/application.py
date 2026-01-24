@@ -46,6 +46,7 @@ class QApplication:
                 
                 # Check for hover/motion globally if needed, or let windows handle it
 
+
             if not self._windows: break
             has_visible = False
             for win in self._windows:
