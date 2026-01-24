@@ -161,6 +161,13 @@ class QMenu(QWidget):
                 if isinstance(a, QAction): 
                     # Only trigger if action is enabled and visible
                     if a.isEnabled() and a.isVisible():
+                        # Close menu before emitting, in case it starts a modal dialog
+                        curr = self
+                        while curr:
+                            if hasattr(curr, '_active_menu'): curr._active_menu = None # For QMenuBar
+                            if hasattr(curr, '_parent'): curr = curr._parent
+                            else: break
+                        
                         a.triggered.emit() # This should call the connected slot
                         return True
                 elif isinstance(a, QMenu):

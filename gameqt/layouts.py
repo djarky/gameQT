@@ -19,49 +19,44 @@ class QVBoxLayout:
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
         
-        # Calculate space
-        total_h = rect.height
+        margins = getattr(self, '_margins', (0,0,0,0))
+        spacing = getattr(self, '_spacing', 0)
+        
+        # Calculate total height occupied by fixed items
         fixed_h = 0
         expandable_count = 0
-        
         for item in visible_items:
-            # Check for known fixed-height widgets or spacers
             class_name = item.__class__.__name__
             if class_name in ('QPushButton', 'QLabel', 'QLineEdit'):
-                fixed_h += 30 # Standard fixed height
+                fixed_h += 30 
             elif class_name == 'Spacer':
-                if getattr(item, 'stretch', 0) == 0:
-                    fixed_h += 10 # Fixed spacer
-                else:
-                    expandable_count += item.stretch
+                if getattr(item, 'stretch', 0) == 0: fixed_h += 10
+                else: expandable_count += item.stretch
             else:
-                expandable_count += 1 # Default expand
-                
-        remaining_h = max(0, total_h - fixed_h)
+                expandable_count += 1
+        
+        remaining_h = max(0, rect.height - margins[1] - margins[3] - fixed_h - (len(visible_items)-1)*spacing)
         item_h = remaining_h / expandable_count if expandable_count > 0 else 0
         
-        curr_y = 0
-        for i, item in enumerate(visible_items):
+        curr_y = margins[1]
+        content_w = rect.width - margins[0] - margins[2]
+        
+        for item in visible_items:
             class_name = item.__class__.__name__
             h = 0
-            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'):
-                h = 30
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'): h = 30
             elif class_name == 'Spacer':
-                if getattr(item, 'stretch', 0) == 0:
-                    h = 10
-                else:
-                    h = item_h * item.stretch
-            else:
-                h = item_h
-                
-            r = pygame.Rect(rect.x, rect.y + curr_y, rect.width, h)
+                 h = int(item_h * item.stretch) if getattr(item, 'stretch', 0) > 0 else 10
+            else: h = int(item_h)
             
-            # Apply margins/padding if reasonable? For now raw.
+            # Use relative rect: top-left is relative to parent's topleft
+            r = pygame.Rect(margins[0], curr_y, content_w, h)
+            
             if hasattr(item, '_rect'): item._rect = r
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(r)
             elif hasattr(item, 'arrange'): item.arrange(r)
             
-            curr_y += h
+            curr_y += h + spacing
 
 class QHBoxLayout:
     def __init__(self, parent=None):
@@ -79,9 +74,15 @@ class QHBoxLayout:
     def arrange(self, rect):
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
-        w = rect.width / len(visible_items)
+        
+        margins = getattr(self, '_margins', (0,0,0,0))
+        spacing = getattr(self, '_spacing', 0)
+        
+        content_w = rect.width - margins[0] - margins[2]
+        item_w = (content_w - (len(visible_items)-1)*spacing) / len(visible_items)
+        
         for i, item in enumerate(visible_items):
-            r = pygame.Rect(i*w, 0, w, rect.height)
+            r = pygame.Rect(margins[0] + i*(item_w + spacing), margins[1], item_w, rect.height - margins[1] - margins[3])
             if hasattr(item, '_rect'): item._rect = r
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(r)
             elif hasattr(item, 'arrange'): item.arrange(r)

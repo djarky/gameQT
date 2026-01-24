@@ -11,6 +11,7 @@ class QWidget(QObject):
         if parent and hasattr(parent, '_children'): parent._children.append(self)
         self.clicked = Signal()
     def setWindowTitle(self, title):
+        self._window_title = title
         from .widgets import QMainWindow
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
     def resize(self, w, h): self._rect.width, self._rect.height = w, h
@@ -150,6 +151,7 @@ class QMainWindow(QWidget):
 class QDialog(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._window_title = "Dialog"
         self.setWindowFlags(Qt.WindowType.Dialog) # Mock
         
     def exec(self):
@@ -169,9 +171,17 @@ class QDialog(QWidget):
         self._rect.y = (sh - h) // 2
         self._rect.width, self._rect.height = w, h
         
-        # Adjust layout if present
-        if self._layout: self._layout.arrange(self._rect)
+        # Adjust layout if present. Area for children is inside margins
+        content_rect = pygame.Rect(0, 30, w, h - 30)
+        if self._layout: self._layout.arrange(content_rect)
         
+        # Ensure screen is up to date before capturing background
+        if QApplication._instance and QApplication._instance._windows:
+            for win in QApplication._instance._windows:
+                if win.isVisible() and win != self:
+                    win._draw_recursive(pygame.Vector2(0,0))
+            pygame.display.flip()
+
         # Capture background
         bg = screen.copy()
         
@@ -188,12 +198,7 @@ class QDialog(QWidget):
                 if event.type == pygame.QUIT:
                     self._running = False
                 else:
-                    # Pass event to this widget (tree)
-                    # We need to offset mouse events because _handle_event implies global or relative?
-                    # GameQt widgets expect global events usually or relative to parent?
-                    # _handle_event takes 'offset'. 
-                    # For a top-level dialog, offset is 0?
-                    # The widget's own rect is absolute in this modal context.
+                    # Pass event to this widget (tree). Offset is 0 for top-level.
                     self._handle_event(event, pygame.Vector2(0,0))
             
             # Draw
@@ -204,13 +209,32 @@ class QDialog(QWidget):
             overlay.fill((0, 0, 0, 100))
             screen.blit(overlay, (0, 0))
             
-            # Draw Dialog and children
-            self._draw_recursive(pygame.Vector2(0,0))
+            # Draw Dialog Background and Border
+            pygame.draw.rect(screen, (240, 240, 245), self._rect, border_radius=8)
+            pygame.draw.rect(screen, (100, 100, 110), self._rect, 1, border_radius=8)
+            
+            # Title bar
+            title_rect = pygame.Rect(self._rect.x, self._rect.y, self._rect.width, 30)
+            pygame.draw.rect(screen, (220, 220, 230), title_rect, border_top_left_radius=8, border_top_right_radius=8)
+            pygame.draw.line(screen, (180, 180, 190), title_rect.bottomleft, title_rect.bottomright)
+            
+            font = pygame.font.SysFont("Arial", 16, bold=True)
+            txt = font.render(getattr(self, '_window_title', "Dialog"), True, (50, 50, 60))
+            screen.blit(txt, (self._rect.x + 10, self._rect.y + 5))
+
+            # Draw children
+            # Children are relative to content_rect (0, 30)
+            # So offset should be self._rect.topleft + (0, 30)
+            self._draw_recursive_children(pygame.Vector2(self._rect.x, self._rect.y + 30))
             
             pygame.display.flip()
             clock.tick(60)
             
         return self._result
+
+    def _draw_recursive_children(self, offset):
+        for child in self._children:
+             child._draw_recursive(offset)
 
     def accept(self): 
         self._result = 1
@@ -241,19 +265,30 @@ class QLabel(QWidget):
     def setTextFormat(self, fmt): pass
     def setOpenExternalLinks(self, open): pass
     def _draw(self, pos):
-        font = pygame.font.SysFont(None, 22)
-        txt = font.render(self._text, True, (20, 20, 20))
+        text = self._text
+        if getattr(self, '_text_format', 0) == Qt.TextFormat.RichText:
+             import re
+             text = re.sub(r'<(br|/?p|/?div)>', '\n', text, flags=re.IGNORECASE)
+             text = re.sub(r'<[^>]+>', '', text)
         
-        # Calculate position based on alignment
-        x = pos.x + self._margin
+        font = pygame.font.SysFont(None, 18)
+        lines = text.split('\n')
+        line_surfs = [font.render(l.strip(), True, (20, 20, 20)) for l in lines]
+        total_h = sum(s.get_height() for s in line_surfs)
+        
         y = pos.y + self._margin
-        
         if self._alignment == Qt.AlignmentFlag.AlignCenter:
-             x = pos.x + (self._rect.width - txt.get_width()) // 2
-             y = pos.y + (self._rect.height - txt.get_height()) // 2
+             y = pos.y + (self._rect.height - total_h) // 2
         
-        if QApplication._instance and QApplication._instance._windows and QApplication._instance._windows[0]._screen:
-            QApplication._instance._windows[0]._screen.blit(txt, (x, y))
+        screen = QApplication._instance._windows[0]._screen
+        for surf in line_surfs:
+            x = pos.x + self._margin
+            if self._alignment == Qt.AlignmentFlag.AlignCenter:
+                x = pos.x + (self._rect.width - surf.get_width()) // 2
+            screen.blit(surf, (x, y))
+            y += surf.get_height()
+
+    def setTextFormat(self, fmt): self._text_format = fmt
 
 class QPushButton(QWidget):
     def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
@@ -359,8 +394,8 @@ class QTabWidget(QWidget):
         for i, tab in enumerate(self._tabs):
             if i == index:
                 tab['widget'].show()
-                # Resize child to fit content area
-                tab['widget']._rect = pygame.Rect(0, 35, self._rect.width, self._rect.height - 35)
+                # Resize child to fit content area (below tabs)
+                tab['widget']._rect = pygame.Rect(0, 31, self._rect.width, self._rect.height - 31)
                 # trigger layout if needed
                 if tab['widget']._layout: tab['widget']._layout.arrange(tab['widget']._rect)
             else:
@@ -370,7 +405,7 @@ class QTabWidget(QWidget):
         # Ensure correct child sizing before draw
         if 0 <= self._current_index < len(self._tabs):
             w = self._tabs[self._current_index]['widget']
-            w._rect = pygame.Rect(0, 35, self._rect.width, self._rect.height - 35)
+            w._rect = pygame.Rect(0, 31, self._rect.width, self._rect.height - 31)
             
         super()._draw_recursive(offset)
 
@@ -452,53 +487,27 @@ class QScrollArea(QWidget):
     
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
-        
         my_pos = offset + pygame.Vector2(self._rect.topleft)
+        self._draw(my_pos)
         
-        # Force widget size
         if self._scroll_widget:
-            # We want the widget to be its natural height probably?
-            # Or at least width matches
-            self._scroll_widget._rect.width = self._rect.width
-            if self._scroll_widget._rect.height < self._rect.height:
-                self._scroll_widget._rect.height = self._rect.height # fill
-                
-        # Draw background
-        if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
-        pygame.draw.rect(screen, (255, 255, 255), (my_pos.x, my_pos.y, self._rect.width, self._rect.height))
-        
-        # Draw child with offset (clipping)
-        if self._scroll_widget:
+            screen = QApplication._instance._windows[0]._screen
             old_clip = screen.get_clip()
             screen.set_clip(pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height))
             
-            # Adjusted offset for scroll
-            child_offset = my_pos + pygame.Vector2(0, -self._scroll_y)
-            # We need to manually call _draw on child because passing offset to _draw_recursive does purely relative
-            # Actually _draw_recursive calls _draw(my_pos) then child._draw_recursive(my_pos).
-            # So if we change 'my_pos' passed to child, it moves.
-            
-            # This is tricky with the recursive design. 
-            # We want to call child._draw_recursive(child_offset - child._rect.topleft)
-            # because child adds its own topleft. 
-            # Wait, child._draw_recursive(parent_pos) -> calculates own pos = parent_pos + own.topleft.
-            # So we pass (my_pos - self._rect.topleft) ? No.
-            # We passed 'my_pos' to children.
-            
-            # We want child to render at my_pos + (0, -scroll).
-            # Child adds its own topleft (usually 0,0 for scroll contents?). 
-            
-            scroll_vec = pygame.Vector2(0, -self._scroll_y)
-            self._scroll_widget._draw_recursive(my_pos + scroll_vec)
+            # Content of scroll area is child. 
+            # We want child to render its items relative to viewport top (my_pos).
+            # If child has its own layout, it will arrange items relative to (0,0).
+            # So child._draw_recursive(my_pos + (0, -scroll))
+            self._scroll_widget._draw_recursive(my_pos + pygame.Vector2(0, -self._scroll_y))
             
             screen.set_clip(old_clip)
             
             # Scrollbar
             if self._scroll_widget._rect.height > self._rect.height:
-                bar_h = self._rect.height * (self._rect.height / self._scroll_widget._rect.height)
+                bar_h = max(20, self._rect.height * (self._rect.height / self._scroll_widget._rect.height))
                 bar_y = my_pos.y + (self._scroll_y / self._scroll_widget._rect.height) * self._rect.height
-                pygame.draw.rect(screen, (180, 180, 180), (my_pos.x + self._rect.width - 10, bar_y, 8, bar_h), border_radius=4)
+                pygame.draw.rect(screen, (180, 180, 180), (my_pos.x + self._rect.width - 8, bar_y, 6, bar_h), border_radius=3)
 
     def mousePressEvent(self, ev):
         if ev.button() == 4: # Scroll Up
