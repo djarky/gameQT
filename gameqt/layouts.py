@@ -7,6 +7,7 @@ class QVBoxLayout:
         self.items, self._parent = [], parent
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
     def addWidget(self, w, alignment=0):
+        w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
     def addStretch(self, s=0): 
@@ -22,39 +23,41 @@ class QVBoxLayout:
         margins = getattr(self, '_margins', (0,0,0,0))
         spacing = getattr(self, '_spacing', 0)
         
-        # Calculate total height occupied by fixed items
         fixed_h = 0
         expandable_count = 0
         for item in visible_items:
             class_name = item.__class__.__name__
-            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'):
-                fixed_h += 30 
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'): fixed_h += 30 
             elif class_name == 'Spacer':
                 if getattr(item, 'stretch', 0) == 0: fixed_h += 10
                 else: expandable_count += item.stretch
-            else:
-                expandable_count += 1
+            else: expandable_count += 1
         
         remaining_h = max(0, rect.height - margins[1] - margins[3] - fixed_h - (len(visible_items)-1)*spacing)
         item_h = remaining_h / expandable_count if expandable_count > 0 else 0
         
-        curr_y = margins[1]
+        curr_y = rect.y + margins[1]
         content_w = rect.width - margins[0] - margins[2]
         
         for item in visible_items:
             class_name = item.__class__.__name__
-            h = 0
-            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'): h = 30
-            elif class_name == 'Spacer':
-                 h = int(item_h * item.stretch) if getattr(item, 'stretch', 0) > 0 else 10
-            else: h = int(item_h)
+            h = 30 if class_name in ('QPushButton', 'QLabel', 'QLineEdit') else (int(item_h * item.stretch) if class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0 else (10 if class_name == 'Spacer' else int(item_h)))
             
-            # Use relative rect: top-left is relative to parent's topleft
-            r = pygame.Rect(margins[0], curr_y, content_w, h)
+            x = rect.x + margins[0]
+            w = content_w
             
-            if hasattr(item, '_rect'): item._rect = r
-            if hasattr(item, '_layout') and item._layout: item._layout.arrange(r)
-            elif hasattr(item, 'arrange'): item.arrange(r)
+            align = getattr(item, '_layout_alignment', 0)
+            if align & Qt.AlignmentFlag.AlignRight and content_w > 100:
+                w = 100
+                x = rect.x + rect.width - margins[2] - w
+            
+            # Use computed absolute rect for this item
+            item_rect = pygame.Rect(x, curr_y, w, h)
+            item._rect = item_rect
+            
+            # Pass this rect to nested layouts so they know where to start
+            if hasattr(item, '_layout') and item._layout: item._layout.arrange(item_rect)
+            elif hasattr(item, 'arrange'): item.arrange(item_rect)
             
             curr_y += h + spacing
 
@@ -63,6 +66,7 @@ class QHBoxLayout:
         self.items, self._parent = [], parent
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
     def addWidget(self, w, alignment=0):
+        w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
     def addStretch(self, s=0): 
@@ -74,18 +78,15 @@ class QHBoxLayout:
     def arrange(self, rect):
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
-        
         margins = getattr(self, '_margins', (0,0,0,0))
         spacing = getattr(self, '_spacing', 0)
-        
         content_w = rect.width - margins[0] - margins[2]
-        item_w = (content_w - (len(visible_items)-1)*spacing) / len(visible_items)
-        
+        item_w = (content_w - (max(0, len(visible_items)-1))*spacing) / len(visible_items)
         for i, item in enumerate(visible_items):
-            r = pygame.Rect(margins[0] + i*(item_w + spacing), margins[1], item_w, rect.height - margins[1] - margins[3])
-            if hasattr(item, '_rect'): item._rect = r
-            if hasattr(item, '_layout') and item._layout: item._layout.arrange(r)
-            elif hasattr(item, 'arrange'): item.arrange(r)
+            item_rect = pygame.Rect(rect.x + margins[0] + i*(item_w + spacing), rect.y + margins[1], item_w, rect.height - margins[1] - margins[3])
+            item._rect = item_rect
+            if hasattr(item, '_layout') and item._layout: item._layout.arrange(item_rect)
+            elif hasattr(item, 'arrange'): item.arrange(item_rect)
 
 class QSplitter(QWidget):
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):

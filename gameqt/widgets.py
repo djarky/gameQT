@@ -222,10 +222,8 @@ class QDialog(QWidget):
             txt = font.render(getattr(self, '_window_title', "Dialog"), True, (50, 50, 60))
             screen.blit(txt, (self._rect.x + 10, self._rect.y + 5))
 
-            # Draw children
-            # Children are relative to content_rect (0, 30)
-            # So offset should be self._rect.topleft + (0, 30)
-            self._draw_recursive_children(pygame.Vector2(self._rect.x, self._rect.y + 30))
+            # Children are already positioned relative to (0, 30) by layout arrange call
+            self._draw_recursive_children(pygame.Vector2(self._rect.topleft))
             
             pygame.display.flip()
             clock.tick(60)
@@ -257,38 +255,77 @@ class QLabel(QWidget):
         super().__init__(parent); self._text = text
         self._alignment = Qt.AlignmentFlag.AlignCenter # Default? usually left but for about dialog it seems center
         self._margin = 0
-    def setText(self, text): self._text = text
+    def setText(self, text): 
+        self._text = text
+        self._calculate_natural_size()
     def text(self): return self._text
     def setAlignment(self, align): self._alignment = align
     def setMargin(self, m): self._margin = m
     def setWordWrap(self, on): pass
-    def setTextFormat(self, fmt): pass
+    def setTextFormat(self, fmt): 
+        self._text_format = fmt
+        self._calculate_natural_size()
     def setOpenExternalLinks(self, open): pass
-    def _draw(self, pos):
+    def _calculate_natural_size(self):
         text = self._text
+        self._img_surf = None
         if getattr(self, '_text_format', 0) == Qt.TextFormat.RichText:
              import re
-             text = re.sub(r'<(br|/?p|/?div)>', '\n', text, flags=re.IGNORECASE)
+             # Try to find an image tag
+             img_match = re.search(r'<img src="file:///([^"]+)"', text)
+             if img_match:
+                 path = img_match.group(1)
+                 if path.startswith("file:"): path = path[5:]
+                 while path.startswith("//"): path = path[1:] # Strip leading slashes to find root
+                 path = "/" + path if not path.startswith("/") else path
+                 path = path.replace("/", os.sep)
+                 if os.path.exists(path):
+                     try:
+                         self._img_surf = pygame.image.load(path)
+                         if self._img_surf.get_width() > 200:
+                             ratio = 200 / self._img_surf.get_width()
+                             self._img_surf = pygame.transform.scale(self._img_surf, (200, int(self._img_surf.get_height() * ratio)))
+                     except: pass
+             
+             # Check for <center> tag
+             if "<center>" in text.lower() or "align=\"center\"" in text.lower():
+                 self._alignment = Qt.AlignmentFlag.AlignCenter
+             
+             text = re.sub(r'<(br|/?p|/?div|/?h[1-6]|/?li)(\s+[^>]*)?>', '\n', text, flags=re.IGNORECASE)
+             # Strip other tags but keep content
              text = re.sub(r'<[^>]+>', '', text)
         
         font = pygame.font.SysFont(None, 18)
-        lines = text.split('\n')
-        line_surfs = [font.render(l.strip(), True, (20, 20, 20)) for l in lines]
-        total_h = sum(s.get_height() for s in line_surfs)
+        self._display_lines = [l.strip() for l in text.split('\n') if l.strip()]
+        self._line_surfs = [font.render(l, True, (20, 20, 20)) for l in self._display_lines]
+        
+        spacing = 5
+        self._total_h = sum(surf.get_height() + spacing for surf in self._line_surfs)
+        if self._img_surf: self._total_h += self._img_surf.get_height() + 10
+        
+        if self._total_h > self._rect.height:
+             self._rect.height = self._total_h
+        
+    def _draw(self, pos):
+        if not hasattr(self, '_line_surfs'): self._calculate_natural_size()
         
         y = pos.y + self._margin
         if self._alignment == Qt.AlignmentFlag.AlignCenter:
-             y = pos.y + (self._rect.height - total_h) // 2
+             y = pos.y + (self._rect.height - self._total_h) // 2
         
         screen = QApplication._instance._windows[0]._screen
-        for surf in line_surfs:
+        if self._img_surf:
+            ix = pos.x + (self._rect.width - self._img_surf.get_width()) // 2
+            screen.blit(self._img_surf, (ix, y))
+            y += self._img_surf.get_height() + 10
+            
+        for surf in self._line_surfs:
             x = pos.x + self._margin
             if self._alignment == Qt.AlignmentFlag.AlignCenter:
                 x = pos.x + (self._rect.width - surf.get_width()) // 2
             screen.blit(surf, (x, y))
-            y += surf.get_height()
+            y += surf.get_height() + 5
 
-    def setTextFormat(self, fmt): self._text_format = fmt
 
 class QPushButton(QWidget):
     def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
@@ -395,9 +432,13 @@ class QTabWidget(QWidget):
             if i == index:
                 tab['widget'].show()
                 # Resize child to fit content area (below tabs)
-                tab['widget']._rect = pygame.Rect(0, 31, self._rect.width, self._rect.height - 31)
-                # trigger layout if needed
-                if tab['widget']._layout: tab['widget']._layout.arrange(tab['widget']._rect)
+                # The widget itself is positioned at (0, 31) relative to QTabWidget
+                w, h = self._rect.width, self._rect.height - 31
+                tab['widget']._rect = pygame.Rect(0, 31, w, h)
+                
+                # trigger layout if needed - arrange relative to the widget's own origin (0,0)
+                if tab['widget']._layout: 
+                    tab['widget']._layout.arrange(pygame.Rect(0, 0, w, h))
             else:
                 tab['widget'].hide()
 
@@ -491,14 +532,18 @@ class QScrollArea(QWidget):
         self._draw(my_pos)
         
         if self._scroll_widget:
+            # Resize child to match width
+            if self._scroll_widget._rect.width != self._rect.width:
+                self._scroll_widget._rect.width = self._rect.width
+                if hasattr(self._scroll_widget, '_calculate_natural_size'):
+                    self._scroll_widget._calculate_natural_size()
+            
+            # Height is managed by child itself or natural size
+                 
             screen = QApplication._instance._windows[0]._screen
             old_clip = screen.get_clip()
             screen.set_clip(pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height))
             
-            # Content of scroll area is child. 
-            # We want child to render its items relative to viewport top (my_pos).
-            # If child has its own layout, it will arrange items relative to (0,0).
-            # So child._draw_recursive(my_pos + (0, -scroll))
             self._scroll_widget._draw_recursive(my_pos + pygame.Vector2(0, -self._scroll_y))
             
             screen.set_clip(old_clip)
