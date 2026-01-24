@@ -124,12 +124,12 @@ class QPainter:
 
 class QPen:
     def __init__(self, color=None, width=1, style=None):
-        self._color = color if color is not None else QColor(0,0,0)
+        self._color = QColor(color) if color is not None else QColor(0,0,0)
         self._width = width
         self._style = style if style is not None else 1  # Qt.PenStyle.SolidLine
 class QBrush:
     def __init__(self, color=None, style=None):
-        self._color = color if color is not None else QColor(0,0,0,0)
+        self._color = QColor(color) if color is not None else QColor(0,0,0,0)
         self._style = style if style is not None else 1  # Qt.BrushStyle.SolidPattern
 class QTransform:
     @staticmethod
@@ -143,3 +143,9 @@ class QKeySequence:
     class StandardKey: Cut = 1; Copy = 2; Paste = 3
     @staticmethod
     def matches(k1, k2): return False
+
+class QTextCursor:
+    class SelectionType: Document = 1
+    def __init__(self): pass
+    def select(self, selection_type): pass
+    def clearSelection(self): pass

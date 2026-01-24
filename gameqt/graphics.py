@@ -1,7 +1,7 @@
 import pygame
 from .core import QObject, Signal, QPointF, QRectF, Qt
 from .widgets import QWidget
-from .gui import QTransform, QColor, QFont
+from .gui import QTransform, QColor, QFont, QPen, QBrush, QTextCursor
 from .application import QApplication
 
 class QGraphicsScene(QObject):
@@ -58,6 +58,8 @@ class QGraphicsItem:
     def mapFromScene(self, *args): return QPointF(*args) - self._pos
     def sceneBoundingRect(self):
         br = self.boundingRect(); return QRectF(self._pos.x() + br.x(), self._pos.y() + br.y(), br.width(), br.height())
+    def setCursor(self, cursor): pass
+    def setFocus(self): pass
     def paint(self, surface, offset): pass
     def mousePressEvent(self, event): pass
     def keyPressEvent(self, event): pass
@@ -67,12 +69,28 @@ class QGraphicsRectItem(QGraphicsItem):
         if len(args) > 0 and isinstance(args[0], QGraphicsItem): super().__init__(args[0]); args = args[1:]
         else: super().__init__()
         self._rect = QRectF(*args) if len(args) in (1, 4) else QRectF(0,0,0,0)
+        self._pen = QPen(QColor(0,0,0))
+        self._brush = QBrush()
+
+    def setPen(self, pen): self._pen = pen
+    def setBrush(self, brush): self._brush = brush
     def setRect(self, *args): self._rect = QRectF(*args)
+
     def rect(self): return self._rect
     def boundingRect(self): return self._rect
     def paint(self, surface, offset):
         r = self._rect.toRect(); r.x += offset.x() + self._pos.x(); r.y += offset.y() + self._pos.y()
-        pygame.draw.rect(surface, (0, 0, 255), r, 1)
+        
+        # Fill
+        if self._brush._style > 0:
+            color = self._brush._color.to_pygame()
+            pygame.draw.rect(surface, color, r)
+        
+        # Border
+        if self._pen._style > 0:
+            color = self._pen._color.to_pygame()
+            width = self._pen._width
+            pygame.draw.rect(surface, color, r, width)
 
 class QGraphicsPixmapItem(QGraphicsItem):
     class ShapeMode: BoundingRectShape = 1
@@ -86,7 +104,13 @@ class QGraphicsPixmapItem(QGraphicsItem):
         if self._pixmap and self._pixmap.surface: surface.blit(self._pixmap.surface, (self._pos.x() + offset.x(), self._pos.y() + offset.y()))
 
 class QGraphicsTextItem(QGraphicsItem):
-    def __init__(self, text="", parent=None): super().__init__(parent); self._text, self._color, self._font = text, QColor(0,0,0), QFont()
+    def __init__(self, text="", parent=None): 
+        super().__init__(parent); self._text, self._color, self._font = text, QColor(0,0,0), QFont()
+        self._text_interaction_flags = 0
+    def setTextInteractionFlags(self, flags): self._text_interaction_flags = flags
+    def textInteractionFlags(self): return self._text_interaction_flags
+    def textCursor(self): return QTextCursor()
+    def setTextCursor(self, cursor): pass
     def toPlainText(self): return self._text
     def setDefaultTextColor(self, c): self._color = c
     def defaultTextColor(self): return self._color

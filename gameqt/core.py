@@ -18,6 +18,27 @@ class Qt:
     class TextInteractionFlag: NoTextInteraction = 0; TextEditorInteraction = 1
     class ContextMenuPolicy: CustomContextMenu = 1
     class ItemFlag: ItemIsEditable = 1
+    class ContextMenuPolicy: CustomContextMenu = 1
+    class ItemFlag: ItemIsEditable = 1
+    class GlobalColor:
+        white = "#FFFFFF"
+        black = "#000000"
+        red = "#FF0000"
+        darkRed = "#800000"
+        green = "#00FF00"
+        darkGreen = "#008000"
+        blue = "#0000FF"
+        darkBlue = "#000080"
+        cyan = "#00FFFF"
+        darkCyan = "#008080"
+        magenta = "#FF00FF"
+        darkMagenta = "#800080"
+        yellow = "#FFFF00"
+        darkYellow = "#808000"
+        gray = "#A0A0A4"
+        darkGray = "#808080"
+        lightGray = "#C0C0C0"
+        transparent = "#00000000" # 8-digit hex for alpha? QColor in gui.py handles 8 digits.
 
 class Signal:
     def __init__(self, *args): 
