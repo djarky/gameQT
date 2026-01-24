@@ -32,17 +32,33 @@ class QMenuBar(QWidget):
                 if self._active_menu == m: m._draw_dropdown(pygame.Vector2(pos.x + item_rect_local.x, pos.y + self._rect.height))
                 curr_x_local += tw + 25
     def mousePressEvent(self, ev):
+        # First check if we clicked on an active dropdown menu
         if self._active_menu:
             for m, rect in self._menu_rects:
                 if m == self._active_menu:
-                    res = m._handle_dropdown_click(ev.pos() - pygame.Vector2(rect.x, self._rect.height))
-                    if res: self._active_menu = None; return
+                    # Calculate dropdown position
+                    dropdown_pos = pygame.Vector2(rect.x, self._rect.height)
+                    # Check if click is within dropdown area
+                    dropdown_rect = pygame.Rect(rect.x, self._rect.height, 200, len(m._actions) * 28)
+                    click_pos = pygame.Vector2(ev.pos().x(), ev.pos().y())
+                    
+                    if dropdown_rect.collidepoint(click_pos.x, click_pos.y):
+                        # Click is inside dropdown
+                        local_pos = click_pos - dropdown_pos
+                        res = m._handle_dropdown_click(local_pos)
+                        if res: 
+                            self._active_menu = None
+                        return
                     break
 
+        # Check if we clicked on a menu title
         for m, rect in self._menu_rects:
             if rect.collidepoint(ev.pos().x(), ev.pos().y()):
+                # Toggle menu: close if already open, open if closed
                 self._active_menu = (None if self._active_menu == m else m)
                 return
+        
+        # Click was outside menus, close any active menu
         self._active_menu = None
 
 class QMenu(QWidget):
@@ -84,12 +100,24 @@ class QMenu(QWidget):
                     txt = font.render(label, True, (45, 45, 50))
                 screen.blit(txt, (pos.x + 12, pos.y + i*28 + (28 - txt.get_height()) // 2))
     def _handle_dropdown_click(self, local_pos):
-        if 0 <= local_pos.x() <= 200 and 0 <= local_pos.y() <= len(self._actions) * 28:
+        # Check if click is within dropdown bounds
+        menu_width = 200
+        menu_height = len(self._actions) * 28
+        
+        if 0 <= local_pos.x() <= menu_width and 0 <= local_pos.y() <= menu_height:
             idx = int(local_pos.y() // 28)
             if 0 <= idx < len(self._actions):
                 a = self._actions[idx]
-                if a == "SEP": return False
-                if isinstance(a, QAction): a.triggered.emit(); return True
+                if a == "SEP": 
+                    return False
+                if isinstance(a, QAction): 
+                    # Only trigger if action is enabled and visible
+                    if a.isEnabled() and a.isVisible():
+                        a.triggered.emit()
+                        return True
+                elif isinstance(a, QMenu):
+                    # Submenu clicked - for now just return False to keep menu open
+                    return False
         return False
 
 class QAction(QObject):

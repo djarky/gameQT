@@ -40,8 +40,20 @@ class QWidget(QObject):
     def _handle_event(self, event, offset):
         if not self.isVisible(): return
         my_pos = offset + pygame.Vector2(self._rect.topleft)
-        for child in reversed(self._children): child._handle_event(event, my_pos)
         
+        # For QMainWindow, handle menu bar events first (higher priority)
+        from .menus import QMenuBar
+        if hasattr(self, '_menu_bar') and isinstance(self._menu_bar, QMenuBar):
+            # If menu bar has an active menu, it should consume the event
+            if hasattr(self._menu_bar, '_active_menu') and self._menu_bar._active_menu:
+                self._menu_bar._handle_event(event, my_pos)
+                return  # Menu bar consumed the event
+        
+        # Propagate to children
+        for child in reversed(self._children): 
+            child._handle_event(event, my_pos)
+        
+        # Handle events for this widget
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
             mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
             if mouse_rect.collidepoint(pygame.mouse.get_pos()):
@@ -112,10 +124,14 @@ class QMainWindow(QWidget):
         
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         self._draw(my_pos)
+        
+        # Draw central widget and other children first
         if self._central_widget: self._central_widget._draw_recursive(my_pos)
-        if self._menu_bar: self._menu_bar._draw_recursive(my_pos)
         for child in self._children:
             if child not in (self._central_widget, self._menu_bar): child._draw_recursive(my_pos)
+        
+        # Draw menu bar LAST so dropdowns appear on top
+        if self._menu_bar: self._menu_bar._draw_recursive(my_pos)
     def show(self):
         super().show()
         if not self._screen: self._screen = pygame.display.set_mode((self._rect.width, self._rect.height), pygame.RESIZABLE)
