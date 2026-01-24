@@ -85,9 +85,14 @@ class QWidget(QObject):
                 if QApplication._instance and QApplication._instance._windows:
                     w._set_parent(QApplication._instance._windows[0]); w.show()
         return MockStatusBar()
-    def setAcceptDrops(self, b): pass
-    def addAction(self, action): pass
-    def setContextMenuPolicy(self, policy): pass
+    def setAcceptDrops(self, b): 
+        self._accept_drops = b
+    def addAction(self, action): 
+        if not hasattr(self, '_actions'):
+            self._actions = []
+        self._actions.append(action)
+    def setContextMenuPolicy(self, policy): 
+        self._context_menu_policy = policy
 
 class QMainWindow(QWidget):
     def __init__(self, parent=None):
@@ -170,10 +175,18 @@ class QSlider(QWidget):
             self.setValue(int(self._min + r * (self._max - self._min)))
 
 class QTabWidget(QWidget):
-    def addTab(self, w, l): pass
+    def addTab(self, w, l): 
+        if not hasattr(self, '_tabs'):
+            self._tabs = []
+        self._tabs.append({'widget': w, 'label': l})
+        w._set_parent(self)
 class QTextEdit(QWidget):
-    def setHtml(self, h): pass
+    def setHtml(self, h): 
+        self._html = h
 class QScrollArea(QWidget):
     class Shape: NoFrame = 0
-    def setWidget(self, w): pass
-    def setWidgetResizable(self, b): pass
+    def setWidget(self, w): 
+        self._scroll_widget = w
+        w._set_parent(self)
+    def setWidgetResizable(self, b): 
+        self._widget_resizable = b

@@ -63,19 +63,64 @@ class QPainter:
         self._device = device
         self._pen = QPen()
         self._brush = QBrush()
-    def save(self): pass
-    def restore(self): pass
+        self._state_stack = []  # Stack for save/restore
+    def save(self):
+        # Save current state
+        self._state_stack.append({
+            'pen': self._pen,
+            'brush': self._brush
+        })
+    def restore(self):
+        # Restore previous state
+        if self._state_stack:
+            state = self._state_stack.pop()
+            self._pen = state['pen']
+            self._brush = state['brush']
     def setPen(self, pen): self._pen = pen
     def setBrush(self, brush): self._brush = brush
     def drawRect(self, rect):
         if not self._device: return
         r = rect.toRect() if hasattr(rect, 'toRect') else rect
         pygame.draw.rect(self._device, (0,0,0), r, 1) # Simple black outline
-    def drawPixmap(self, rect, pixmap):
-        if self._device and pixmap.surface:
-            self._device.blit(pixmap.surface, rect.topLeft())
-    def drawText(self, *args): # Basic text drawing
-        pass 
+    def drawPixmap(self, *args):
+        if not self._device: return
+        # Handle different signatures: drawPixmap(rect, pixmap) or drawPixmap(x, y, pixmap)
+        if len(args) == 2:
+            rect, pixmap = args
+            if pixmap.surface:
+                self._device.blit(pixmap.surface, (rect.x() if hasattr(rect, 'x') else rect[0], 
+                                                   rect.y() if hasattr(rect, 'y') else rect[1]))
+        elif len(args) == 3:
+            x, y, pixmap = args
+            if pixmap.surface:
+                self._device.blit(pixmap.surface, (x, y))
+    def drawText(self, *args):
+        if not self._device: return
+        # Handle different signatures: drawText(rect, flags, text) or drawText(x, y, text)
+        if len(args) == 3:
+            if isinstance(args[0], (int, float)):
+                # drawText(x, y, text)
+                x, y, text = args
+                font = pygame.font.SysFont('Arial', 12)
+                color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+                surface = font.render(str(text), True, color)
+                self._device.blit(surface, (x, y))
+            else:
+                # drawText(rect, flags, text)
+                rect, flags, text = args
+                font = pygame.font.SysFont('Arial', 12)
+                color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+                surface = font.render(str(text), True, color)
+                r = rect.toRect() if hasattr(rect, 'toRect') else rect
+                self._device.blit(surface, (r.x if hasattr(r, 'x') else r[0], 
+                                           r.y if hasattr(r, 'y') else r[1]))
+        elif len(args) == 2:
+            # drawText(point, text)
+            point, text = args
+            font = pygame.font.SysFont('Arial', 12)
+            color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+            surface = font.render(str(text), True, color)
+            self._device.blit(surface, (point.x(), point.y()))
 
 class QPen:
     def __init__(self, color=None, width=1, style=None):

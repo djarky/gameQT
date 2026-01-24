@@ -53,8 +53,15 @@ class QMenu(QWidget):
         self._actions.append(m); return m
     def clear(self): self._actions = []
     def addSeparator(self): self._actions.append("SEP")
-    def exec(self, pos=None): pass
-    def _draw(self, pos): pass
+    def exec(self, pos=None):
+        # Show menu at position and wait for selection
+        # In a real implementation, this would show a Pygame popup menu
+        print(f"[QMenu] Showing popup menu at {pos}")
+        return None
+    def _draw(self, pos):
+        # Draw the menu at the given position
+        # This would render menu items using Pygame
+        pass
     def _draw_dropdown(self, pos):
         screen = pygame.display.get_surface()
         if not screen or not self._actions: return
@@ -87,9 +94,31 @@ class QMenu(QWidget):
 
 class QAction(QObject):
     triggered, toggled = Signal(), Signal(bool)
-    def __init__(self, text="", parent=None): super().__init__(parent); self.text = text
-    def setShortcut(self, s): pass
-    def setEnabled(self, e): pass
-    def setVisible(self, v): pass
-    def setCheckable(self, b): pass
-    def setChecked(self, b): pass
+    def __init__(self, text="", parent=None): 
+        super().__init__(parent)
+        self.text = text
+        self._shortcut = None
+        self._enabled = True
+        self._visible = True
+        self._checkable = False
+        self._checked = False
+    def setShortcut(self, s): 
+        self._shortcut = s
+    def setEnabled(self, e): 
+        self._enabled = e
+    def setVisible(self, v): 
+        self._visible = v
+    def setCheckable(self, b): 
+        self._checkable = b
+    def setChecked(self, b): 
+        if self._checkable:
+            self._checked = b
+            self.toggled.emit(b)
+    def isEnabled(self): 
+        return self._enabled
+    def isVisible(self): 
+        return self._visible
+    def isCheckable(self): 
+        return self._checkable
+    def isChecked(self): 
+        return self._checked

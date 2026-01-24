@@ -79,7 +79,8 @@ class QGraphicsPixmapItem(QGraphicsItem):
     def __init__(self, pixmap=None, parent=None): super().__init__(parent); self._pixmap = pixmap
     def pixmap(self): return self._pixmap
     def setPixmap(self, p): self._pixmap = p
-    def setShapeMode(self, mode): pass
+    def setShapeMode(self, mode): 
+        self._shape_mode = mode
     def boundingRect(self): return self._pixmap.rect() if self._pixmap else QRectF(0,0,0,0)
     def paint(self, surface, offset):
         if self._pixmap and self._pixmap.surface: surface.blit(self._pixmap.surface, (self._pos.x() + offset.x(), self._pos.y() + offset.y()))
@@ -104,10 +105,19 @@ class QGraphicsView(QWidget):
     def setScene(self, scene):
         if scene: self._scene = scene; scene._views.append(self)
     def viewport(self): return self
-    def setRenderHint(self, h, on=True): pass
-    def setDragMode(self, m): pass
-    def setTransformationAnchor(self, a): pass
-    def setResizeAnchor(self, a): pass
+    def setRenderHint(self, h, on=True): 
+        if not hasattr(self, '_render_hints'):
+            self._render_hints = set()
+        if on:
+            self._render_hints.add(h)
+        else:
+            self._render_hints.discard(h)
+    def setDragMode(self, m): 
+        self._drag_mode = m
+    def setTransformationAnchor(self, a): 
+        self._transformation_anchor = a
+    def setResizeAnchor(self, a): 
+        self._resize_anchor = a
     def mapToScene(self, p): return QPointF(p.x, p.y)
     def _draw(self, pos):
         if not QApplication._instance or not QApplication._instance._windows: return

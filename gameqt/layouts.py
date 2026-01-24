@@ -9,7 +9,10 @@ class QVBoxLayout:
     def addWidget(self, w, alignment=0):
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
-    def addStretch(self, s=0): pass # Strech not really handled yet
+    def addStretch(self, s=0): 
+        # Add a stretchable spacer
+        spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
+        self.items.append(spacer)
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
     def arrange(self, rect):
@@ -29,7 +32,10 @@ class QHBoxLayout:
     def addWidget(self, w, alignment=0):
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
-    def addStretch(self, s=0): pass
+    def addStretch(self, s=0): 
+        # Add a stretchable spacer
+        spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
+        self.items.append(spacer)
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
     def arrange(self, rect):

@@ -6,12 +6,21 @@ from .application import QApplication
 class QAbstractItemView(QWidget):
     class SelectionMode: SingleSelection = 1; MultiSelection = 2; ExtendedSelection = 3; ContourSelection = 4
     class DragDropMode: NoDragDrop = 0; InternalMove = 4
-    def setDragDropMode(self, m): pass
-    def setSelectionMode(self, m): pass
+    def setDragDropMode(self, m): 
+        self._drag_drop_mode = m
+    def setSelectionMode(self, m): 
+        self._selection_mode = m
 
 class QHeaderView:
     class ResizeMode: Stretch = 1; ResizeToContents = 2; Fixed = 3; Interactive = 0
-    def setSectionResizeMode(self, c, m): pass
+    def setSectionResizeMode(self, *args):
+        if not hasattr(self, '_resize_modes'):
+            self._resize_modes = {}
+        if len(args) == 2:
+            c, m = args
+            self._resize_modes[c] = m
+        elif len(args) == 1:
+            self._default_resize_mode = args[0]
 
 class QStyledItemDelegate: pass
 class QStyleOptionViewItem: pass
@@ -23,11 +32,18 @@ class QTreeWidget(QAbstractItemView):
     def clear(self): self._items = []
     def invisibleRootItem(self): return self._root
     def header(self): return self._header
-    def setHeaderLabels(self, l): pass
-    def setItemDelegateForColumn(self, c, d): pass
-    def setContextMenuPolicy(self, p): pass
-    def setDragEnabled(self, b): pass
-    def setAcceptDrops(self, b): pass
+    def setHeaderLabels(self, l): 
+        self._header_labels = l
+    def setItemDelegateForColumn(self, c, d): 
+        if not hasattr(self, '_delegates'):
+            self._delegates = {}
+        self._delegates[c] = d
+    def setContextMenuPolicy(self, p): 
+        self._context_menu_policy = p
+    def setDragEnabled(self, b): 
+        self._drag_enabled = b
+    def setAcceptDrops(self, b): 
+        self._accept_drops = b
     def topLevelItem(self, i): return self._items[i] if i < len(self._items) else None
     def _draw(self, pos):
         super()._draw(pos)
@@ -56,12 +72,18 @@ class QListWidget(QAbstractItemView):
     def __init__(self, parent=None):
         super().__init__(parent); self.itemClicked, self._items = Signal(), []
         self._model = type('MockModel', (), {'rowsMoved': Signal()})()
-    def setIconSize(self, s): pass
-    def setViewMode(self, m): pass
-    def setSelectionMode(self, m): pass
-    def setDragEnabled(self, b): pass
-    def setDropIndicatorShown(self, b): pass
-    def setDragDropMode(self, m): pass
+    def setIconSize(self, s): 
+        self._icon_size = s
+    def setViewMode(self, m): 
+        self._view_mode = m
+    def setSelectionMode(self, m): 
+        self._selection_mode = m
+    def setDragEnabled(self, b): 
+        self._drag_enabled = b
+    def setDropIndicatorShown(self, b): 
+        self._drop_indicator_shown = b
+    def setDragDropMode(self, m): 
+        self._drag_drop_mode = m
     def model(self): return self._model
     def addItem(self, i): self._items.append(i); i._list = self
     def count(self): return len(self._items)

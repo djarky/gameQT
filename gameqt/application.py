@@ -23,7 +23,9 @@ class QApplication:
                     def hasText(self): return False
                     def text(self): return ""
                 return MockMime()
-            def setMimeData(self, data): pass
+            def setMimeData(self, data): 
+                self._mime_data = data
+                print(f"[Clipboard] Data set: {data}")
             def image(self): return QImage()
         return MockClipboard()
     def exec(self):
