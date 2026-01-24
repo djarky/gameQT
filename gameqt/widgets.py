@@ -389,6 +389,13 @@ class QTabWidget(QWidget):
         self._tabs = [] # list of (widget, label)
         self._current_index = 0
         
+    def show(self):
+        # Override to prevent recursive show from showing all tabs
+        self._visible = True
+        # Show only current tab
+        if self._tabs and 0 <= self._current_index < len(self._tabs):
+             self._tabs[self._current_index]['widget'].show()
+        
     def addTab(self, w, l): 
         self._tabs.append({'widget': w, 'label': l})
         w._set_parent(self)
