@@ -29,36 +29,61 @@ class QMenuBar(QWidget):
                      pygame.draw.rect(screen, (225, 230, 240), (pos.x + item_rect_local.x, pos.y, item_rect_local.width, item_rect_local.height))
                 
                 screen.blit(txt, (pos.x + curr_x_local, pos.y + (self._rect.height - th) // 2))
-                if self._active_menu == m: m._draw_dropdown(pygame.Vector2(pos.x + item_rect_local.x, pos.y + self._rect.height))
                 curr_x_local += tw + 25
+            
+            # Draw active dropdown AFTER all menu titles
+            if self._active_menu:
+                for m, rect in self._menu_rects:
+                    if m == self._active_menu:
+                        dropdown_pos = pygame.Vector2(pos.x + rect.x, pos.y + self._rect.height)
+                        m._draw_dropdown(dropdown_pos)
+                        break
     def mousePressEvent(self, ev):
-        # First check if we clicked on an active dropdown menu
+        print(f"[QMenuBar.mousePressEvent] Called! pos=({ev.pos().x()}, {ev.pos().y()})")
+        # Check if clicking on an item in an active dropdown
         if self._active_menu:
+            print(f"[QMenuBar] Active menu: {self._active_menu.text}")
             for m, rect in self._menu_rects:
                 if m == self._active_menu:
-                    # Calculate dropdown position
-                    dropdown_pos = pygame.Vector2(rect.x, self._rect.height)
-                    # Check if click is within dropdown area
-                    dropdown_rect = pygame.Rect(rect.x, self._rect.height, 200, len(m._actions) * 28)
-                    click_pos = pygame.Vector2(ev.pos().x(), ev.pos().y())
+                    # Dropdown is below the menu bar
+                    dropdown_x = rect.x
+                    dropdown_y = self._rect.height
+                    dropdown_width = 200
+                    dropdown_height = len(m._actions) * 28
                     
-                    if dropdown_rect.collidepoint(click_pos.x, click_pos.y):
-                        # Click is inside dropdown
-                        local_pos = click_pos - dropdown_pos
-                        res = m._handle_dropdown_click(local_pos)
-                        if res: 
+                    # Check if click is in dropdown area
+                    click_x = ev.pos().x()
+                    click_y = ev.pos().y()
+                    
+                    print(f"[QMenuBar] Dropdown area: x={dropdown_x}-{dropdown_x+dropdown_width}, y={dropdown_y}-{dropdown_y+dropdown_height}")
+                    print(f"[QMenuBar] Click at: x={click_x}, y={click_y}")
+                    
+                    if (dropdown_x <= click_x <= dropdown_x + dropdown_width and
+                        dropdown_y <= click_y <= dropdown_y + dropdown_height):
+                        # Click inside dropdown
+                        local_x = click_x - dropdown_x
+                        local_y = click_y - dropdown_y
+                        print(f"[QMenuBar] Click INSIDE dropdown!")
+                        
+                        result = m._handle_dropdown_click(pygame.Vector2(local_x, local_y))
+                        if result:
                             self._active_menu = None
                         return
                     break
-
-        # Check if we clicked on a menu title
+        
+        # Check if clicking on a menu title
         for m, rect in self._menu_rects:
             if rect.collidepoint(ev.pos().x(), ev.pos().y()):
-                # Toggle menu: close if already open, open if closed
-                self._active_menu = (None if self._active_menu == m else m)
+                print(f"[QMenuBar] Clicked on menu title: {m.text}")
+                # Toggle menu
+                if self._active_menu == m:
+                    self._active_menu = None
+                else:
+                    self._active_menu = m
                 return
         
-        # Click was outside menus, close any active menu
+        # Click outside menus
+        print(f"[QMenuBar] Click outside menus")
         self._active_menu = None
 
 class QMenu(QWidget):

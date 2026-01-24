@@ -41,15 +41,21 @@ class QWidget(QObject):
         if not self.isVisible(): return
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         
-        # For QMainWindow, handle menu bar events first (higher priority)
-        from .menus import QMenuBar
-        if hasattr(self, '_menu_bar') and isinstance(self._menu_bar, QMenuBar):
-            # If menu bar has an active menu, it should consume the event
-            if hasattr(self._menu_bar, '_active_menu') and self._menu_bar._active_menu:
-                self._menu_bar._handle_event(event, my_pos)
-                return  # Menu bar consumed the event
+        # Special handling for QMainWindow with menu bar
+        if hasattr(self, '_menu_bar') and self._menu_bar:
+            # Check if event is a mouse event in menu bar area
+            if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+                menu_bar_rect = pygame.Rect(my_pos.x, my_pos.y, 
+                                            self._menu_bar._rect.width, 
+                                            self._menu_bar._rect.height)
+                mouse_pos = pygame.mouse.get_pos()
+                
+                # If clicking in menu bar area OR menu bar has active menu, let it handle the event
+                if menu_bar_rect.collidepoint(mouse_pos) or (hasattr(self._menu_bar, '_active_menu') and self._menu_bar._active_menu):
+                    self._menu_bar._handle_event(event, my_pos)
+                    return  # Menu bar handled it, don't propagate
         
-        # Propagate to children
+        # Normal event propagation to children
         for child in reversed(self._children): 
             child._handle_event(event, my_pos)
         
