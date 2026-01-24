@@ -143,3 +143,71 @@ class QMouseEvent:
     def ignore(self): pass
 
 def pyqtSignal(*args): return Signal(*args)
+
+class PyGameModalDialog:
+    def __init__(self, title="Dialog", width=400, height=300):
+        self.title = title
+        self.rect = pygame.Rect(0, 0, width, height)
+        self.result = None
+        self.running = False
+        
+    def exec_(self):
+        screen = pygame.display.get_surface()
+        if not screen: return
+        
+        # Capture background
+        bg = screen.copy()
+        
+        # Center dialog
+        sw, sh = screen.get_size()
+        self.rect.center = (sw // 2, sh // 2)
+        
+        clock = pygame.time.Clock()
+        self.running = True
+        
+        while self.running:
+            # Event Loop
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    self.result = None
+                elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+                    # Handle mouse interaction with dialog elements
+                    self.handle_event(event) # Custom handler
+                elif event.type == pygame.KEYDOWN:
+                    self.handle_key(event)
+            
+            # Draw
+            screen.blit(bg, (0, 0))
+            
+            # Dim background
+            overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            screen.blit(overlay, (0, 0))
+            
+            # Draw Dialog
+            self.draw(screen)
+            
+            pygame.display.flip()
+            clock.tick(60)
+            
+        return self.result
+
+    def draw(self, screen):
+        # Base window
+        pygame.draw.rect(screen, (240, 240, 245), self.rect, border_radius=8)
+        pygame.draw.rect(screen, (100, 100, 110), self.rect, 1, border_radius=8)
+        
+        # Title bar
+        title_rect = pygame.Rect(self.rect.x, self.rect.y, self.rect.width, 30)
+        pygame.draw.rect(screen, (220, 220, 230), title_rect, border_top_left_radius=8, border_top_right_radius=8)
+        pygame.draw.line(screen, (180, 180, 190), title_rect.bottomleft, title_rect.bottomright)
+        
+        font = pygame.font.SysFont("Arial", 16, bold=True)
+        txt = font.render(self.title, True, (50, 50, 60))
+        screen.blit(txt, (self.rect.x + 10, self.rect.y + 5))
+
+    def handle_event(self, event): pass
+    def handle_key(self, event): 
+        if event.key == pygame.K_ESCAPE: self.running = False

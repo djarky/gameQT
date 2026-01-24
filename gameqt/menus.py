@@ -169,9 +169,8 @@ class QMenu(QWidget):
         return False
 
 class QAction(QObject):
-    triggered, toggled = Signal(), Signal(bool)
     def __init__(self, text="", parent=None): 
-        super().__init__(parent)
+        super().__init__(parent); self.triggered, self.toggled = Signal(), Signal(bool)
         self.text = text
         self._shortcut = None
         self._enabled = True

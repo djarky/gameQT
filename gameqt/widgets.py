@@ -1,76 +1,8 @@
 import pygame
 import os
 import sys
-from .core import QObject, Signal, QMouseEvent, Qt
+from .core import QObject, Signal, QMouseEvent, Qt, PyGameModalDialog
 from .application import QApplication
-
-class PyGameModalDialog:
-    def __init__(self, title="Dialog", width=400, height=300):
-        self.title = title
-        self.rect = pygame.Rect(0, 0, width, height)
-        self.result = None
-        self.running = False
-        
-    def exec_(self):
-        screen = pygame.display.get_surface()
-        if not screen: return
-        
-        # Capture background
-        bg = screen.copy()
-        
-        # Center dialog
-        sw, sh = screen.get_size()
-        self.rect.center = (sw // 2, sh // 2)
-        
-        clock = pygame.time.Clock()
-        self.running = True
-        
-        while self.running:
-            # Event Loop
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    self.running = False
-                    self.result = None
-                elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-                    # Handle mouse interaction with dialog elements
-                    self.handle_event(event) # Custom handler
-                elif event.type == pygame.KEYDOWN:
-                    self.handle_key(event)
-            
-            # Draw
-            screen.blit(bg, (0, 0))
-            
-            # Dim background
-            overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 100))
-            screen.blit(overlay, (0, 0))
-            
-            # Draw Dialog
-            self.draw(screen)
-            
-            pygame.display.flip()
-            clock.tick(60)
-            
-        return self.result
-
-    def draw(self, screen):
-        # Base window
-        pygame.draw.rect(screen, (240, 240, 245), self.rect, border_radius=8)
-        pygame.draw.rect(screen, (100, 100, 110), self.rect, 1, border_radius=8)
-        
-        # Title bar
-        title_rect = pygame.Rect(self.rect.x, self.rect.y, self.rect.width, 30)
-        pygame.draw.rect(screen, (220, 220, 230), title_rect, border_top_left_radius=8, border_top_right_radius=8)
-        pygame.draw.line(screen, (180, 180, 190), title_rect.bottomleft, title_rect.bottomright)
-        
-        font = pygame.font.SysFont("Arial", 16, bold=True)
-        txt = font.render(self.title, True, (50, 50, 60))
-        screen.blit(txt, (self.rect.x + 10, self.rect.y + 5))
-
-    def handle_event(self, event): pass
-    def handle_key(self, event): 
-        if event.key == pygame.K_ESCAPE: self.running = False
 
 class QWidget(QObject):
     def __init__(self, parent=None):
@@ -339,9 +271,8 @@ class QPushButton(QWidget):
             screen.blit(txt, (pos.x + (self._rect.width - txt.get_width())//2, pos.y + (self._rect.height - txt.get_height())//2))
 
 class QSlider(QWidget):
-    valueChanged = Signal(int)
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):
-        super().__init__(parent); self._val, self._min, self._max = 50, 0, 100
+        super().__init__(parent); self.valueChanged = Signal(int); self._val, self._min, self._max = 50, 0, 100
     def setRange(self, mi, ma): self._min, self._max = mi, ma
     def setMinimum(self, v): self._min = v
     def setMaximum(self, v): self._max = v
@@ -409,41 +340,19 @@ class QTabWidget(QWidget):
         pygame.draw.line(screen, (150, 150, 150), (pos.x, pos.y + tab_height), (pos.x + self._rect.width, pos.y + tab_height))
 
     def mousePressEvent(self, ev):
-        x, y = ev.pos()
-        # Check tab clicks
-        for i, tab in enumerate(self._tabs):
-            rect = tab.get('rect')
-            if rect:
-                # Convert event pos (local to widget, but rects I calculated above are global... wait)
-                # My _draw calculation uses 'pos' which is offset + self._rect.topleft (Global)
-                # ev.pos() is also Local (relative to widget).
-                # Wait, QMouseEvent in widgets.py is passed as `local_pos`.
-                # So if I use local coordinates in _draw, I need to be consistent.
-                # In _draw, 'pos' is GLOBAL screen coordinates.
-                # In mousePressEvent, 'ev.pos()' is LOCAL.
-                
-                # Let's adjust hit test.
-                # Tab is at (10 + accumulated_width, 0) in local coords.
-                
-                # Re-calculate local rect logic or use stored rect converted to local?
-                # Stored rect 'rect' is GLOBAL because it came from 'pos' in _draw.
-                
-                # Hack: Since I don't easily have 'offset' here, let's recalculate local geometry strictly.
-                pass
-        
-        # Simple recalculation
-        font = pygame.font.SysFont("Arial", 16)
-        curr_x = 10
+        x, y = ev.pos().x(), ev.pos().y()
         tab_h = 30
+        if y > tab_h: return
         
-        if y < tab_h:
-            for i, tab in enumerate(self._tabs):
-                text = font.render(tab['label'], True, (0,0,0))
-                w = text.get_width() + 20
-                if curr_x <= x <= curr_x + w:
-                    self.setCurrentIndex(i)
-                    return
-                curr_x += w + 2
+        font = pygame.font.SysFont("Arial", 14)
+        curr_x = 10
+        for i, tab in enumerate(self._tabs):
+            text = font.render(tab['label'], True, (0,0,0))
+            tw = text.get_width() + 20
+            if curr_x <= x <= curr_x + tw:
+                self.setCurrentIndex(i)
+                return
+            curr_x += tw + 2
 
     def setCurrentIndex(self, index):
         self._current_index = index

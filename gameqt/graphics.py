@@ -5,9 +5,8 @@ from .gui import QTransform, QColor, QFont, QPen, QBrush, QTextCursor
 from .application import QApplication
 
 class QGraphicsScene(QObject):
-    selectionChanged = Signal()
     def __init__(self, parent=None):
-        super().__init__(parent); self.items_list, self._bg_brush, self._scene_rect = [], None, QRectF(0,0,800,600); self._views = []
+        super().__init__(parent); self.selectionChanged = Signal(); self.items_list, self._bg_brush, self._scene_rect = [], None, QRectF(0,0,800,600); self._views = []
     def views(self): return self._views
     def addItem(self, item): self.items_list.append(item); item._scene = self
     def removeItem(self, item): (self.items_list.remove(item), setattr(item, '_scene', None)) if item in self.items_list else None
@@ -152,6 +151,19 @@ class QGraphicsView(QWidget):
     def mousePressEvent(self, ev):
         if self._scene: self._scene.mousePressEvent(ev)
     def mouseMoveEvent(self, ev):
-        pass  # Override in subclasses if needed
+        if self._scene and pygame.mouse.get_pressed()[0]:
+             if not hasattr(self, '_last_mouse_pos'):
+                 self._last_mouse_pos = ev.pos()
+                 return
+             
+             delta = ev.pos() - self._last_mouse_pos
+             for item in self._scene.selectedItems():
+                 if item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable:
+                     item.setPos(item.pos() + delta)
+             
+             self._last_mouse_pos = ev.pos()
+             self.sceneChanged.emit()
+             
     def mouseReleaseEvent(self, ev):
-        pass  # Override in subclasses if needed
+        if hasattr(self, '_last_mouse_pos'):
+            del self._last_mouse_pos
