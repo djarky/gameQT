@@ -82,7 +82,9 @@ class QWidget(QObject):
                     if hasattr(self, 'mouseMoveEvent'): self.mouseMoveEvent(q_event)
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
-        if self._layout and hasattr(self._layout, 'arrange'): self._layout.arrange(self._rect)
+        if self._layout and hasattr(self._layout, 'arrange'): 
+            # Layout arranges items relative to this widget's origin (0,0)
+            self._layout.arrange(pygame.Rect(0, 0, self._rect.width, self._rect.height))
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         self._draw(my_pos)
         for child in self._children: child._draw_recursive(my_pos)
@@ -159,6 +161,9 @@ class QDialog(QWidget):
         screen = pygame.display.get_surface()
         if not screen: return 0
         
+        # Ensure all children visibility is correct BEFORE calculating layout
+        self.show()
+        
         # Center dialog on screen
         sw, sh = screen.get_size()
         w, h = self._rect.width, self._rect.height
@@ -188,9 +193,6 @@ class QDialog(QWidget):
         clock = pygame.time.Clock()
         self._running = True
         self._result = 0
-        
-        # Ensure all children visibility is correct
-        self.show()
         
         while self._running:
             events = pygame.event.get()
@@ -255,13 +257,14 @@ class QLabel(QWidget):
         super().__init__(parent); self._text = text
         self._alignment = Qt.AlignmentFlag.AlignCenter # Default? usually left but for about dialog it seems center
         self._margin = 0
+        self._word_wrap = False
     def setText(self, text): 
         self._text = text
         self._calculate_natural_size()
     def text(self): return self._text
     def setAlignment(self, align): self._alignment = align
     def setMargin(self, m): self._margin = m
-    def setWordWrap(self, on): pass
+    def setWordWrap(self, on): self._word_wrap = on
     def setTextFormat(self, fmt): 
         self._text_format = fmt
         self._calculate_natural_size()
@@ -296,7 +299,24 @@ class QLabel(QWidget):
              text = re.sub(r'<[^>]+>', '', text)
         
         font = pygame.font.SysFont(None, 18)
-        self._display_lines = [l.strip() for l in text.split('\n') if l.strip()]
+        raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
+        
+        self._display_lines = []
+        if self._word_wrap and self._rect.width > 20:
+            for line in raw_lines:
+                words = line.split(' ')
+                curr_line = ""
+                for word in words:
+                    test_line = curr_line + " " + word if curr_line else word
+                    if font.size(test_line)[0] < self._rect.width - 20: # Margin cushion
+                        curr_line = test_line
+                    else:
+                        self._display_lines.append(curr_line)
+                        curr_line = word
+                if curr_line: self._display_lines.append(curr_line)
+        else:
+            self._display_lines = raw_lines
+            
         self._line_surfs = [font.render(l, True, (20, 20, 20)) for l in self._display_lines]
         
         spacing = 5
