@@ -150,16 +150,35 @@ class QDialog(QWidget):
         super().__init__(parent)
         if not parent and QApplication._instance: QApplication._instance._windows.append(self)
     def exec(self): self.show(); return 1
+    def accept(self): self.close()
+    def reject(self): self.close()
 
 class QLabel(QWidget):
-    def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
+    def __init__(self, text="", parent=None): 
+        super().__init__(parent); self._text = text
+        self._alignment = Qt.AlignmentFlag.AlignCenter # Default? usually left but for about dialog it seems center
+        self._margin = 0
     def setText(self, text): self._text = text
     def text(self): return self._text
+    def setAlignment(self, align): self._alignment = align
+    def setMargin(self, m): self._margin = m
+    def setWordWrap(self, on): pass
+    def setTextFormat(self, fmt): pass
+    def setOpenExternalLinks(self, open): pass
     def _draw(self, pos):
         font = pygame.font.SysFont(None, 22)
         txt = font.render(self._text, True, (20, 20, 20))
+        
+        # Calculate position based on alignment
+        x = pos.x + self._margin
+        y = pos.y + self._margin
+        
+        if self._alignment == Qt.AlignmentFlag.AlignCenter:
+             x = pos.x + (self._rect.width - txt.get_width()) // 2
+             y = pos.y + (self._rect.height - txt.get_height()) // 2
+        
         if QApplication._instance and QApplication._instance._windows and QApplication._instance._windows[0]._screen:
-            QApplication._instance._windows[0]._screen.blit(txt, (pos.x + 2, pos.y + 2))
+            QApplication._instance._windows[0]._screen.blit(txt, (x, y))
 
 class QPushButton(QWidget):
     def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
@@ -207,6 +226,7 @@ class QTabWidget(QWidget):
 class QTextEdit(QWidget):
     def setHtml(self, h): 
         self._html = h
+    def setReadOnly(self, b): pass
 class QScrollArea(QWidget):
     class Shape: NoFrame = 0
     def setWidget(self, w): 
@@ -214,3 +234,4 @@ class QScrollArea(QWidget):
         w._set_parent(self)
     def setWidgetResizable(self, b): 
         self._widget_resizable = b
+    def setFrameShape(self, shape): pass

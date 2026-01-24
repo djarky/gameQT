@@ -2,7 +2,7 @@ import pygame
 
 class Qt:
     class Orientation: Horizontal = 1; Vertical = 2
-    class AlignmentFlag: AlignCenter = 0x0084
+    class AlignmentFlag: AlignCenter = 0x0084; AlignRight = 0x0002; AlignLeft = 0x0001
     class MouseButton: LeftButton = 1; RightButton = 2; NoButton = 0
     class Key:
         Key_Delete = pygame.K_DELETE; Key_R = pygame.K_r; Key_J = pygame.K_j
@@ -20,6 +20,8 @@ class Qt:
     class ItemFlag: ItemIsEditable = 1
     class ContextMenuPolicy: CustomContextMenu = 1
     class ItemFlag: ItemIsEditable = 1
+    class ItemFlag: ItemIsEditable = 1
+    class TextFormat: PlainText = 0; RichText = 1
     class GlobalColor:
         white = "#FFFFFF"
         black = "#000000"

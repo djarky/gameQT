@@ -45,6 +45,20 @@ class QTreeWidget(QAbstractItemView):
     def setAcceptDrops(self, b): 
         self._accept_drops = b
     def topLevelItem(self, i): return self._items[i] if i < len(self._items) else None
+    def selectedItems(self):
+        # Recursive search for selected items
+        items = []
+        def traverse(item):
+            if hasattr(item, 'isSelected') and item.isSelected(): items.append(item)
+            for i in range(item.childCount()): traverse(item.child(i))
+        # Also check top level items
+        for item in self._items: traverse(item)
+        return items
+    def currentItem(self):
+        sel = self.selectedItems()
+        return sel[0] if sel else None
+    def expandAll(self): pass
+    def collapseAll(self): pass
     def _draw(self, pos):
         super()._draw(pos)
         if not QApplication._instance or not QApplication._instance._windows: return
@@ -57,7 +71,11 @@ class QTreeWidget(QAbstractItemView):
 class QTreeWidgetItem:
     def __init__(self, parent=None):
         self._parent, self._children, self._data, self._text = parent, [], {}, {}
+        self._selected = False
         if parent and hasattr(parent, 'addChild'): parent.addChild(self)
+    def isSelected(self): return self._selected
+    def setSelected(self, b): self._selected = b
+    def setExpanded(self, b): pass
     def data(self, c, r): return self._data.get((c, r))
     def setData(self, c, r, v): self._data[(c, r)] = v
     def text(self, c): return self._text.get(c, "")
