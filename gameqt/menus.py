@@ -1,5 +1,5 @@
 import pygame
-from .core import QObject, Signal, Qt
+from .core import QObject, Signal, Qt, QMouseEvent
 from .widgets import QWidget
 from .application import QApplication
 
@@ -38,6 +38,29 @@ class QMenuBar(QWidget):
                         dropdown_pos = pygame.Vector2(pos.x + rect.x, pos.y + self._rect.height)
                         m._draw_dropdown(dropdown_pos)
                         break
+    def _handle_event(self, event, offset):
+        # Custom handle_event for QMenuBar to allow clicking outside bounds (on dropdowns)
+        if not self.isVisible(): return
+        
+        # Calculate my absolute position
+        my_pos = offset + pygame.Vector2(self._rect.topleft)
+        
+        # Prepare QMouseEvent
+        if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+            # For QMenuBar allow events anywhere if we have an active menu
+            # Otherwise only inside rect
+            mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+            is_inside = mouse_rect.collidepoint(pygame.mouse.get_pos())
+            
+            if is_inside or self._active_menu:
+                local_pos = pygame.Vector2(pygame.mouse.get_pos()) - my_pos
+                q_event = QMouseEvent(local_pos, 
+                                     getattr(event, 'button', Qt.MouseButton.NoButton), 
+                                     pygame.key.get_mods())
+                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.mousePressEvent(q_event)
+                # We don't handle release/move for now in MenuBar extensively
     def mousePressEvent(self, ev):
         # Check if clicking on an item in an active dropdown
         if self._active_menu:
@@ -129,8 +152,8 @@ class QMenu(QWidget):
         menu_width = 200
         menu_height = len(self._actions) * 28
         
-        if 0 <= local_pos.x() <= menu_width and 0 <= local_pos.y() <= menu_height:
-            idx = int(local_pos.y() // 28)
+        if 0 <= local_pos.x <= menu_width and 0 <= local_pos.y <= menu_height:
+            idx = int(local_pos.y // 28)
             if 0 <= idx < len(self._actions):
                 a = self._actions[idx]
                 if a == "SEP": 
@@ -138,7 +161,7 @@ class QMenu(QWidget):
                 if isinstance(a, QAction): 
                     # Only trigger if action is enabled and visible
                     if a.isEnabled() and a.isVisible():
-                        a.triggered.emit()
+                        a.triggered.emit() # This should call the connected slot
                         return True
                 elif isinstance(a, QMenu):
                     # Submenu clicked - for now just return False to keep menu open
