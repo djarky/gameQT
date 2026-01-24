@@ -18,12 +18,50 @@ class QVBoxLayout:
     def arrange(self, rect):
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
-        h = rect.height / len(visible_items)
+        
+        # Calculate space
+        total_h = rect.height
+        fixed_h = 0
+        expandable_count = 0
+        
+        for item in visible_items:
+            # Check for known fixed-height widgets or spacers
+            class_name = item.__class__.__name__
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'):
+                fixed_h += 30 # Standard fixed height
+            elif class_name == 'Spacer':
+                if getattr(item, 'stretch', 0) == 0:
+                    fixed_h += 10 # Fixed spacer
+                else:
+                    expandable_count += item.stretch
+            else:
+                expandable_count += 1 # Default expand
+                
+        remaining_h = max(0, total_h - fixed_h)
+        item_h = remaining_h / expandable_count if expandable_count > 0 else 0
+        
+        curr_y = 0
         for i, item in enumerate(visible_items):
-            r = pygame.Rect(0, i*h, rect.width, h)
+            class_name = item.__class__.__name__
+            h = 0
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'):
+                h = 30
+            elif class_name == 'Spacer':
+                if getattr(item, 'stretch', 0) == 0:
+                    h = 10
+                else:
+                    h = item_h * item.stretch
+            else:
+                h = item_h
+                
+            r = pygame.Rect(rect.x, rect.y + curr_y, rect.width, h)
+            
+            # Apply margins/padding if reasonable? For now raw.
             if hasattr(item, '_rect'): item._rect = r
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(r)
             elif hasattr(item, 'arrange'): item.arrange(r)
+            
+            curr_y += h
 
 class QHBoxLayout:
     def __init__(self, parent=None):

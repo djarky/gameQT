@@ -473,8 +473,17 @@ class QTextEdit(QWidget):
         
     def setHtml(self, h): 
         self._html = h
-        # Basic parsing: Strip tags-ish
-        text = h.replace("<br>", "\n").replace("<p>", "").replace("</p>", "\n").replace("<h1>", "").replace("</h1>", "\n").replace("<b>", "").replace("</b>", "").replace("<i>", "").replace("</i>", "")
+        # Better parsing: Use regex to strip tags
+        import re
+        # Remove <style>...</style>
+        text = re.sub(r'<style.*?>.*?</style>', '', h, flags=re.DOTALL)
+        # Replace common block tags with newlines
+        text = re.sub(r'</?(p|div|h[1-6]|br|tr|li).*?>', '\n', text)
+        # Remove all other tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Fix multiple newlines
+        text = re.sub(r'\n+', '\n', text).strip()
+        
         self._lines = text.split('\n')
         
     def setReadOnly(self, b): pass
