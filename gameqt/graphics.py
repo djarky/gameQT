@@ -117,3 +117,7 @@ class QGraphicsView(QWidget):
             [item.paint(screen, pos) for item in self._scene.items() if item.isVisible()]
     def mousePressEvent(self, ev):
         if self._scene: self._scene.mousePressEvent(ev)
+    def mouseMoveEvent(self, ev):
+        pass  # Override in subclasses if needed
+    def mouseReleaseEvent(self, ev):
+        pass  # Override in subclasses if needed
