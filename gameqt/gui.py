@@ -63,6 +63,7 @@ class QPainter:
         self._device = device
         self._pen = QPen()
         self._brush = QBrush()
+        self._font = QFont()
         self._transform = QTransform()
         self._state_stack = []  # Stack for save/restore
     def save(self):
@@ -70,6 +71,7 @@ class QPainter:
         self._state_stack.append({
             'pen': self._pen,
             'brush': self._brush,
+            'font': self._font,
             'transform': QTransform(*self._transform._m[:2], *self._transform._m[3:5], *self._transform._m[6:8])
         })
     def restore(self):
@@ -78,9 +80,11 @@ class QPainter:
             state = self._state_stack.pop()
             self._pen = state['pen']
             self._brush = state['brush']
+            self._font = state['font']
             self._transform = state['transform']
     def setPen(self, pen): self._pen = pen
     def setBrush(self, brush): self._brush = brush
+    def setFont(self, font): self._font = font
     def setTransform(self, transform): self._transform = transform
     def transform(self): return self._transform
     def translate(self, dx, dy): self._transform.translate(dx, dy)
@@ -149,26 +153,30 @@ class QPainter:
             if isinstance(args[0], (int, float)):
                 # drawText(x, y, text)
                 x, y, text = args
-                font = pygame.font.SysFont('Arial', 12)
-                color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+                p = self._transform.map(QPointF(x, y))
+                font = pygame.font.SysFont(self._font._family, self._font._size)
+                color = self._pen._color.to_pygame()
                 surface = font.render(str(text), True, color)
-                self._device.blit(surface, (x, y))
+                self._device.blit(surface, (p.x(), p.y()))
             else:
                 # drawText(rect, flags, text)
                 rect, flags, text = args
-                font = pygame.font.SysFont('Arial', 12)
-                color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+                font = pygame.font.SysFont(self._font._family, self._font._size)
+                color = self._pen._color.to_pygame()
                 surface = font.render(str(text), True, color)
                 r = rect.toRect() if hasattr(rect, 'toRect') else rect
-                self._device.blit(surface, (r.x if hasattr(r, 'x') else r[0], 
-                                           r.y if hasattr(r, 'y') else r[1]))
+                # Apply transform to top-left of rect? Or just translate?
+                # Usually drawText in rect handles alignment. For now simple:
+                p = self._transform.map(QPointF(r.x, r.y))
+                self._device.blit(surface, (p.x(), p.y()))
         elif len(args) == 2:
             # drawText(point, text)
             point, text = args
-            font = pygame.font.SysFont('Arial', 12)
-            color = self._pen._color.to_pygame() if hasattr(self._pen._color, 'to_pygame') else (0, 0, 0)
+            p = self._transform.map(point)
+            font = pygame.font.SysFont(self._font._family, self._font._size)
+            color = self._pen._color.to_pygame()
             surface = font.render(str(text), True, color)
-            self._device.blit(surface, (point.x(), point.y()))
+            self._device.blit(surface, (p.x(), p.y()))
 
 class QPen:
     def __init__(self, color=None, width=1, style=None):

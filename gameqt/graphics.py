@@ -1,7 +1,7 @@
 import pygame
 from .core import QObject, Signal, QPointF, QRectF, Qt
 from .widgets import QWidget
-from .gui import QTransform, QColor, QFont, QPen, QBrush, QTextCursor
+from .gui import QPainter, QTransform, QColor, QFont, QPen, QBrush, QTextCursor
 from .application import QApplication
 
 class QGraphicsScene(QObject):
@@ -59,7 +59,7 @@ class QGraphicsItem:
         br = self.boundingRect(); return QRectF(self._pos.x() + br.x(), self._pos.y() + br.y(), br.width(), br.height())
     def setCursor(self, cursor): pass
     def setFocus(self): pass
-    def paint(self, surface, offset): pass
+    def paint(self, painter, option, widget): pass
     def mousePressEvent(self, event): pass
     def keyPressEvent(self, event): pass
 
@@ -77,19 +77,15 @@ class QGraphicsRectItem(QGraphicsItem):
 
     def rect(self): return self._rect
     def boundingRect(self): return self._rect
-    def paint(self, surface, offset):
-        r = self._rect.toRect(); r.x += offset.x() + self._pos.x(); r.y += offset.y() + self._pos.y()
+    def paint(self, painter, option, widget):
+        painter.save()
+        painter.translate(self._pos.x(), self._pos.y())
+        # Apply item transform if needed 
         
-        # Fill
-        if self._brush._style > 0:
-            color = self._brush._color.to_pygame()
-            pygame.draw.rect(surface, color, r)
-        
-        # Border
-        if self._pen._style > 0:
-            color = self._pen._color.to_pygame()
-            width = self._pen._width
-            pygame.draw.rect(surface, color, r, width)
+        painter.setPen(self._pen)
+        painter.setBrush(self._brush)
+        painter.drawRect(self._rect)
+        painter.restore()
 
 class QGraphicsPixmapItem(QGraphicsItem):
     class ShapeMode: BoundingRectShape = 1
@@ -99,8 +95,12 @@ class QGraphicsPixmapItem(QGraphicsItem):
     def setShapeMode(self, mode): 
         self._shape_mode = mode
     def boundingRect(self): return self._pixmap.rect() if self._pixmap else QRectF(0,0,0,0)
-    def paint(self, surface, offset):
-        if self._pixmap and self._pixmap.surface: surface.blit(self._pixmap.surface, (self._pos.x() + offset.x(), self._pos.y() + offset.y()))
+    def paint(self, painter, option, widget):
+        if self._pixmap:
+            painter.save()
+            painter.translate(self._pos.x(), self._pos.y())
+            painter.drawPixmap(0, 0, self._pixmap)
+            painter.restore()
 
 class QGraphicsTextItem(QGraphicsItem):
     def __init__(self, text="", parent=None): 
@@ -116,9 +116,14 @@ class QGraphicsTextItem(QGraphicsItem):
     def setFont(self, f): self._font = f
     def font(self): return self._font
     def boundingRect(self): return QRectF(0,0,100,20)
-    def paint(self, surface, offset):
-        font = pygame.font.SysFont(self._font._family, self._font._size)
-        txt = font.render(self._text, True, self._color.to_pygame()); surface.blit(txt, (self._pos.x() + offset.x(), self._pos.y() + offset.y()))
+    def paint(self, painter, option, widget):
+        painter.save()
+        painter.translate(self._pos.x(), self._pos.y())
+        painter.setFont(self._font)
+        painter.setPen(QPen(self._color))
+        painter.drawText(0, 0, self._text)
+        painter.restore()
+        
 
 class QGraphicsView(QWidget):
     class DragMode: RubberBandDrag = 1; NoDrag = 0
@@ -162,12 +167,14 @@ class QGraphicsView(QWidget):
             tx, ty = self._view_transform._m[6], self._view_transform._m[7]
             total_offset = QPointF(pos.x + tx, pos.y + ty)
             
-            # Zoom? Surface scaling is easier than coordinate math for every item if we want full fidelity.
-            # But for now let's just do coordinate translation.
+            painter = QPainter(screen)
+            painter.translate(pos.x + tx, pos.y + ty)
+            # View transform scale isn't fully handleable yet in QPainter.translate
+            # but we can pass it manually if needed. For now just translate.
+            
             for item in self._scene.items():
                 if item.isVisible():
-                    # We should really transform the item's paint surface if scale != 1
-                    item.paint(screen, total_offset)
+                    item.paint(painter, None, self)
             
             # Draw rubber band
             if self._rubber_band_rect:

@@ -164,11 +164,15 @@ class QTreeWidget(QAbstractItemView):
 class QTreeWidgetItem:
     def __init__(self, parent=None):
         self._parent, self._children, self._data, self._text = parent, [], {}, {}
-        self._selected = False
+        self._selected = False; self._expanded = True; self._flags = 0
         if parent and hasattr(parent, 'addChild'): parent.addChild(self)
+    def flags(self): return self._flags
+    def setFlags(self, f): self._flags = f
     def isSelected(self): return self._selected
     def setSelected(self, b): self._selected = b
-    def setExpanded(self, b): pass
+    def checkState(self, column): return self._data.get(('check', column), Qt.CheckState.Unchecked)
+    def setCheckState(self, column, state): self._data[('check', column)] = state
+    def setExpanded(self, b): self._expanded = b
     def data(self, c, r): return self._data.get((c, r))
     def setData(self, c, r, v): self._data[(c, r)] = v
     def text(self, c): return self._text.get(c, "")

@@ -139,6 +139,12 @@ class QMainWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self._screen = None; self._central_widget = None; self._menu_bar = None
         if QApplication._instance: QApplication._instance._windows.append(self)
+    def show(self):
+        super().show()
+        if not self._screen:
+            self._screen = pygame.display.set_mode((self._rect.width, self._rect.height), pygame.RESIZABLE)
+            if hasattr(QApplication.instance(), '_app_name'):
+                pygame.display.set_caption(QApplication.instance()._app_name)
     def setMenuBar(self, menu_bar):
         self._menu_bar = menu_bar
         menu_bar._set_parent(self); menu_bar.show()
