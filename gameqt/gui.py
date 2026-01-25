@@ -222,7 +222,10 @@ class QRadialGradient(QGradient):
         self._center = (cx, cy); self._radius = radius
 class QTransform:
     def __init__(self, m11=1.0, m12=0.0, m21=0.0, m22=1.0, dx=0.0, dy=0.0):
-        self._m = [m11, m12, 0.0, m21, m22, 0.0, dx, dy, 1.0]
+        if isinstance(m11, (list, tuple)) and len(m11) == 9:
+            self._m = list(m11)
+        else:
+            self._m = [m11, m12, 0.0, m21, m22, 0.0, dx, dy, 1.0]
     def translate(self, dx, dy):
         self._m[6] += dx * self._m[0] + dy * self._m[3]
         self._m[7] += dx * self._m[1] + dy * self._m[4]

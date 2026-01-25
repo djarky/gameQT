@@ -11,7 +11,7 @@ class Qt:
         AlignBottom = 0x0040
         AlignVCenter = 0x0080
         AlignCenter = AlignHCenter | AlignVCenter
-    class MouseButton: LeftButton = 1; RightButton = 2; NoButton = 0
+    class MouseButton: LeftButton = 0x01; RightButton = 0x02; MidButton = 0x04; NoButton = 0x00
     class Key:
         Key_Delete = pygame.K_DELETE; Key_R = pygame.K_r; Key_J = pygame.K_j
         Key_Return = pygame.K_RETURN; Key_Enter = pygame.K_KP_ENTER; Key_Escape = pygame.K_ESCAPE
@@ -96,6 +96,7 @@ class QPointF:
         else: self._x, self._y = float(x), float(y)
     def x(self): return self._x
     def y(self): return self._y
+    def toPoint(self): return QPoint(self._x, self._y)
     def setX(self, x): self._x = float(x)
     def setY(self, y): self._y = float(y)
     def __getitem__(self, i): return [self._x, self._y][i]
@@ -146,13 +147,43 @@ class QRectF:
                     other.y() + other.height() <= self._y)
 
 class QMouseEvent:
-    def __init__(self, pos, button=Qt.MouseButton.NoButton, modifiers=Qt.KeyboardModifier.NoModifier):
-        self._pos, self._button, self._modifiers = QPointF(pos), button, modifiers
+    def __init__(self, pos, button=Qt.MouseButton.NoButton, buttons=None, modifiers=Qt.KeyboardModifier.NoModifier):
+        self._pos = QPointF(pos)
+        self._button = button
+        self._buttons = buttons if buttons is not None else button
+        self._modifiers = modifiers
+        self._accepted = True
     def pos(self): return self._pos
     def button(self): return self._button
-    def buttons(self): return self._button  # For compatibility, return the same as button()
+    def position(self): return self._pos
+    def buttons(self): return self._buttons
     def modifiers(self): return self._modifiers
-    def ignore(self): pass
+    def accept(self): self._accepted = True
+    def ignore(self): self._accepted = False
+    def isAccepted(self): return self._accepted
+
+class QPoint:
+    def __init__(self, x=0, y=0):
+        if isinstance(x, (QPoint, QPointF, tuple, list, pygame.Vector2)):
+            if isinstance(x, (tuple, list, pygame.Vector2)): self._x, self._y = int(x[0]), int(x[1])
+            else: self._x, self._y = int(x.x()), int(x.y())
+        else: self._x, self._y = int(x), int(y)
+    def x(self): return self._x
+    def y(self): return self._y
+
+class QWheelEvent:
+    def __init__(self, pos, angleDelta, modifiers=Qt.KeyboardModifier.NoModifier):
+        self._pos = QPointF(pos)
+        self._angleDelta = QPoint(angleDelta.x(), angleDelta.y())
+        self._modifiers = modifiers
+        self._accepted = True
+    def pos(self): return self._pos
+    def angleDelta(self): return self._angleDelta
+    def pixelDelta(self): return self._angleDelta 
+    def modifiers(self): return self._modifiers
+    def accept(self): self._accepted = True
+    def ignore(self): self._accepted = False
+    def isAccepted(self): return self._accepted
 
 def pyqtSignal(*args): return Signal(*args)
 

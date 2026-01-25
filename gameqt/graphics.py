@@ -58,6 +58,11 @@ class QGraphicsItem:
     def sceneBoundingRect(self):
         br = self.boundingRect(); return QRectF(self._pos.x() + br.x(), self._pos.y() + br.y(), br.width(), br.height())
     def setCursor(self, cursor): pass
+    def setData(self, key, value):
+        if not hasattr(self, '_data'): self._data = {}
+        self._data[key] = value
+    def data(self, key):
+        return getattr(self, '_data', {}).get(key)
     def setFocus(self): pass
     def paint(self, painter, option, widget): pass
     def mousePressEvent(self, event): pass
@@ -168,9 +173,9 @@ class QGraphicsView(QWidget):
             total_offset = QPointF(pos.x + tx, pos.y + ty)
             
             painter = QPainter(screen)
-            painter.translate(pos.x + tx, pos.y + ty)
-            # View transform scale isn't fully handleable yet in QPainter.translate
-            # but we can pass it manually if needed. For now just translate.
+            # Apply view transform: Translate AND Scale (m11, m12, m21, m22, dx, dy)
+            m = self._view_transform._m
+            painter.setTransform(QTransform(m[0], m[1], m[3], m[4], pos.x + m[6], pos.y + m[7]))
             
             for item in self._scene.items():
                 if item.isVisible():
@@ -243,3 +248,10 @@ class QGraphicsView(QWidget):
         self._is_panning = False
         if hasattr(self, '_last_mouse_pos'):
             del self._last_mouse_pos
+
+    def wheelEvent(self, ev):
+        # Default behavior: scroll vertically
+        delta = ev.angleDelta().y()
+        self.translate(0, delta)
+        ev.accept()
+

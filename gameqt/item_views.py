@@ -6,10 +6,18 @@ from .application import QApplication
 class QAbstractItemView(QWidget):
     class SelectionMode: SingleSelection = 1; MultiSelection = 2; ExtendedSelection = 3; ContourSelection = 4
     class DragDropMode: NoDragDrop = 0; InternalMove = 4
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.selectionChanged = Signal()
     def setDragDropMode(self, m): 
         self._drag_drop_mode = m
     def setSelectionMode(self, m): 
         self._selection_mode = m
+    def wheelEvent(self, ev):
+        delta = ev.angleDelta().y()
+        self._scroll_y = getattr(self, '_scroll_y', 0) - (delta / 120.0) * 40
+        self._scroll_y = max(0, self._scroll_y)
+        ev.accept()
 
 class QHeaderView:
     class ResizeMode: Stretch = 1; ResizeToContents = 2; Fixed = 3; Interactive = 0
@@ -30,6 +38,13 @@ class QTreeWidget(QAbstractItemView):
         super().__init__(parent); self._items, self._header = [], QHeaderView(); self._root = QTreeWidgetItem(self); self.tree = self
         self.itemChanged, self.itemSelectionChanged, self.customContextMenuRequested = Signal(object, int), Signal(), Signal(object)
     def clear(self): self._items = []
+    def clearSelection(self):
+        def unselect(item):
+            item._selected = False
+            for i in range(item.childCount()): unselect(item.child(i))
+        unselect(self._root)
+        self.selectionChanged.emit()
+        self.itemSelectionChanged.emit()
     def invisibleRootItem(self): return self._root
     def header(self): return self._header
     def setHeaderLabels(self, l): 
@@ -44,6 +59,10 @@ class QTreeWidget(QAbstractItemView):
         self._drag_enabled = b
     def setAcceptDrops(self, b): 
         self._accept_drops = b
+    def indexOfTopLevelItem(self, item):
+        return self._items.index(item) if item in self._items else -1
+    def takeTopLevelItem(self, index):
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
     def topLevelItem(self, i): return self._items[i] if i < len(self._items) else None
     def selectedItems(self):
         # Recursive search for selected items
@@ -123,33 +142,30 @@ class QTreeWidget(QAbstractItemView):
         for i in range(self._root.childCount()):
             draw_item(self._root.child(i), 0, 0)
 
-    def mousePressEvent(self, ev):
-        mx, my = ev.pos().x(), ev.pos().y()
+    def itemAt(self, *args):
+        # handle point or x,y
+        if len(args) == 1: p = args[0]; x, y = p.x(), p.y()
+        else: x, y = args
+        
         header_h = 25
         item_h = 22
+        if y < header_h: return None
         
-        if my < header_h: return
-        
-        # Find which item was clicked
-        clicked_idx = (my - header_h) // item_h
-        
-        # Flattened list for hit testing
+        idx = (y - header_h) // item_h
         flat_items = []
         def flatten(item):
             flat_items.append(item)
             if getattr(item, '_expanded', True):
                 for i in range(item.childCount()): flatten(item.child(i))
-        
         for i in range(self._root.childCount()): flatten(self._root.child(i))
         
-        if 0 <= clicked_idx < len(flat_items):
-            # Clear selection
-            def clear_sel(item):
-                item._selected = False
-                for i in range(item.childCount()): clear_sel(item.child(i))
-            clear_sel(self._root)
-            
-            item = flat_items[clicked_idx]
+        return flat_items[int(idx)] if 0 <= idx < len(flat_items) else None
+
+    def mousePressEvent(self, ev):
+        mx, my = ev.pos().x(), ev.pos().y()
+        item = self.itemAt(mx, my)
+        if item:
+            self.clearSelection()
             item._selected = True
             
             # Check for visibility toggle (Column 2)
@@ -158,7 +174,6 @@ class QTreeWidget(QAbstractItemView):
             
             self.itemSelectionChanged.emit()
             if col == 2: # Vis column
-                 # In real Qt this triggers itemChanged
                  self.itemChanged.emit(item, 2)
 
 class QTreeWidgetItem:
@@ -178,6 +193,17 @@ class QTreeWidgetItem:
     def text(self, c): return self._text.get(c, "")
     def setText(self, c, t): self._text[c] = t
     def addChild(self, i): self._children.append(i); i._parent = self
+    def insertChild(self, index, i): self._children.insert(index, i); i._parent = self
+    def removeChild(self, i): 
+        if i in self._children: self._children.remove(i); i._parent = None
+    def takeChild(self, index):
+        if 0 <= index < len(self._children):
+            c = self._children.pop(index)
+            c._parent = None
+            return c
+        return None
+    def indexOfChild(self, i):
+        return self._children.index(i) if i in self._children else -1
     def childCount(self): return len(self._children)
     def child(self, i): return self._children[i]
     def parent(self): return self._parent if isinstance(self._parent, QTreeWidgetItem) else None

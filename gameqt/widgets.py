@@ -1,7 +1,7 @@
 import pygame
 import os
 import sys
-from .core import QObject, Signal, QMouseEvent, Qt, PyGameModalDialog
+from .core import QObject, Signal, QMouseEvent, QWheelEvent, QPoint, Qt, PyGameModalDialog
 from .application import QApplication
 
 class QWidget(QObject):
@@ -17,6 +17,17 @@ class QWidget(QObject):
     def resize(self, w, h): self._rect.width, self._rect.height = w, h
     def setMinimumSize(self, w, h): pass
     def setCursor(self, cursor): pass
+    def viewport(self): return self # Fallback
+    def mapToGlobal(self, p):
+        # Simplistic: just add widget absolute position
+        # We need to find absolute position
+        abs_x, abs_y = 0, 0
+        curr = self
+        while curr:
+            abs_x += curr._rect.x
+            abs_y += curr._rect.y
+            curr = curr._parent
+        return QPointF(abs_x + p.x(), abs_y + p.y())
     def setCentralWidget(self, widget):
         widget._set_parent(self); widget.show()
         widget._rect = pygame.Rect(0, 0, self._rect.width, self._rect.height)
@@ -50,35 +61,42 @@ class QWidget(QObject):
         self._parent = parent
         if parent and hasattr(parent, '_children'): parent._children.append(self)
     def _handle_event(self, event, offset):
-        if not self.isVisible(): return
+        if not self.isVisible(): return False
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         
         # Special handling for QMainWindow with menu bar
         if hasattr(self, '_menu_bar') and self._menu_bar:
-            # Check if event is a mouse event in menu bar area
             if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-                menu_bar_rect = pygame.Rect(my_pos.x, my_pos.y, 
-                                            self._menu_bar._rect.width, 
-                                            self._menu_bar._rect.height)
-                mouse_pos = pygame.mouse.get_pos()
-                
-                # If clicking in menu bar area OR menu bar has active menu, let it handle the event
-                if menu_bar_rect.collidepoint(mouse_pos) or (hasattr(self._menu_bar, '_active_menu') and self._menu_bar._active_menu):
-                    self._menu_bar._handle_event(event, my_pos)
-                    return  # Menu bar handled it, don't propagate
-        
-        # Normal event propagation to children
+                menu_bar_rect = pygame.Rect(my_pos.x, my_pos.y, self._menu_bar._rect.width, self._menu_bar._rect.height)
+                if menu_bar_rect.collidepoint(pygame.mouse.get_pos()) or (hasattr(self._menu_bar, '_active_menu') and self._menu_bar._active_menu):
+                    return self._menu_bar._handle_event(event, my_pos)
+
+        # 1. Deliver to children first (highest z-order)
         for child in reversed(self._children): 
-            child._handle_event(event, my_pos)
+            if child._handle_event(event, my_pos):
+                return True
         
-        # Handle events for this widget
+        # 2. Handle events for THIS widget
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
             mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
             if mouse_rect.collidepoint(pygame.mouse.get_pos()):
                 local_pos = pygame.Vector2(pygame.mouse.get_pos()) - my_pos
-                q_event = QMouseEvent(local_pos, 
-                                     getattr(event, 'button', Qt.MouseButton.NoButton), 
-                                     pygame.key.get_mods())
+                btn = getattr(event, 'button', Qt.MouseButton.NoButton)
+                if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                    if btn == 1: btn = Qt.MouseButton.LeftButton
+                    elif btn == 2: btn = Qt.MouseButton.MidButton
+                    elif btn == 3: btn = Qt.MouseButton.RightButton
+                    # Do not filter out 4/5, let them be for now if needed, but QMouseEvent doesn't have flags for them
+                
+                btns = 0
+                if event.type == pygame.MOUSEMOTION:
+                    if event.buttons[0]: btns |= Qt.MouseButton.LeftButton
+                    if event.buttons[1]: btns |= Qt.MouseButton.MidButton
+                    if event.buttons[2]: btns |= Qt.MouseButton.RightButton
+                else: btns = btn
+                
+                q_event = QMouseEvent(local_pos, btn, btns, pygame.key.get_mods())
+                q_event.ignore() # Not accepted by default for bubbling
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if hasattr(self, 'mousePressEvent'): self.mousePressEvent(q_event)
@@ -87,6 +105,29 @@ class QWidget(QObject):
                     if hasattr(self, 'mouseReleaseEvent'): self.mouseReleaseEvent(q_event)
                 elif event.type == pygame.MOUSEMOTION:
                     if hasattr(self, 'mouseMoveEvent'): self.mouseMoveEvent(q_event)
+                
+                return q_event.isAccepted()
+        
+        if event.type == pygame.MOUSEWHEEL:
+            mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+            if mouse_rect.collidepoint(pygame.mouse.get_pos()):
+                local_pos = pygame.Vector2(pygame.mouse.get_pos()) - my_pos
+                px = getattr(event, 'precise_x', float(event.x))
+                py = getattr(event, 'precise_y', float(event.y))
+                w_event = QWheelEvent(local_pos, QPoint(int(px * 120), int(py * 120)), pygame.key.get_mods())
+                w_event.ignore() # Default to ignored for bubbling
+                if hasattr(self, 'wheelEvent'): self.wheelEvent(w_event)
+                return w_event.isAccepted()
+        
+        # Legacy scroll
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button in (4, 5):
+             mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+             if mouse_rect.collidepoint(pygame.mouse.get_pos()):
+                # We reuse mousePressEvent for legacy scroll handling in QScrollArea
+                # But we should actually trigger wheelEvent or accepted mousePress
+                return False # Let it bubble or be handled by specific logic
+        
+        return False
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
         if self._layout and hasattr(self._layout, 'arrange'): 
@@ -719,6 +760,7 @@ class QTextEdit(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._html = ""; self._plain_text = ""; self._lines = []; self._focused = False; self._read_only = False
+        self._scroll_y = 0
         self.textChanged = Signal()
     def setPlainText(self, t): self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit()
     def toPlainText(self): return self._plain_text
@@ -734,69 +776,37 @@ class QTextEdit(QWidget):
     def _draw(self, pos):
         super()._draw(pos)
         font = pygame.font.SysFont("Arial", 14)
-        
-        y = pos.y + 5
+        y = pos.y + 5 - self._scroll_y
         line_height = 18
-        
         if not QApplication._instance or not QApplication._instance._windows: return
         screen = QApplication._instance._windows[0]._screen
-        
-        # Simple clipping
         old_clip = screen.get_clip()
         screen.set_clip(pygame.Rect(pos.x, pos.y, self._rect.width, self._rect.height))
-        
         for line in self._lines:
-            if y > pos.y + self._rect.height: break
-            if line.strip():
-                # Word wrap simplistic
-                words = line.split(' ')
-                draw_line = ""
-                for word in words:
-                    test_line = draw_line + " " + word if draw_line else word
-                    if font.size(test_line)[0] < self._rect.width - 10:
-                        draw_line = test_line
-                    else:
-                        txt = font.render(draw_line, True, (0, 0, 0))
-                        screen.blit(txt, (pos.x + 5, y))
-                        y += line_height
-        if self._focused and (pygame.time.get_ticks() // 500) % 2 == 0:
-             # Cursor at the end for now
-             # This is a very simplistic cursor. For proper text editing,
-             # cursor position needs to be tracked within lines and characters.
-             # For now, it just blinks at the end of the last drawn line.
-             cursor_x = pos.x + 5
-             if self._lines:
-                 last_line_text = self._lines[-1]
-                 # Re-calculate width of the last line to place cursor correctly
-                 font = pygame.font.SysFont("Arial", 14)
-                 # This assumes no word wrap for the last line for cursor placement
-                 cursor_x += font.size(last_line_text)[0]
-             
-             pygame.draw.line(screen, (0,0,0), (cursor_x, y - line_height + 2), (cursor_x, y - 2), 1)
-
+            if y + line_height > pos.y:
+                if y < pos.y + self._rect.height:
+                    txt = font.render(line, True, (0, 0, 0))
+                    screen.blit(txt, (pos.x + 5, y))
+            y += line_height
         screen.set_clip(old_clip)
 
+    def wheelEvent(self, ev):
+        delta = ev.angleDelta().y()
+        self._scroll_y = max(0, self._scroll_y - (delta / 120.0) * 40)
+        ev.accept()
     def mousePressEvent(self, ev): self._focused = True
     def _handle_event(self, event, offset):
-        super()._handle_event(event, offset)
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            my_pos = offset + pygame.Vector2(self._rect.topleft)
-            if not pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height).collidepoint(pygame.mouse.get_pos()):
-                self._focused = False
+        if super()._handle_event(event, offset): return True
         if self._focused and not self._read_only and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_BACKSPACE:
                 if self._plain_text:
                     self._plain_text = self._plain_text[:-1]
-                    self._lines = self._plain_text.split('\n')
-                    self.textChanged.emit()
+                    self._lines = self._plain_text.split('\n'); self.textChanged.emit()
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                self._plain_text += '\n'
-                self._lines = self._plain_text.split('\n')
-                self.textChanged.emit()
+                self._plain_text += '\n'; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
             elif event.unicode and event.unicode.isprintable():
-                self._plain_text += event.unicode
-                self._lines = self._plain_text.split('\n')
-                self.textChanged.emit()
+                self._plain_text += event.unicode; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+        return False
 
 class QScrollArea(QWidget):
     class Shape: NoFrame = 0
@@ -842,13 +852,23 @@ class QScrollArea(QWidget):
                 bar_y = my_pos.y + (self._scroll_y / self._scroll_widget._rect.height) * self._rect.height
                 pygame.draw.rect(screen, (180, 180, 180), (my_pos.x + self._rect.width - 8, bar_y, 6, bar_h), border_radius=3)
 
+    def wheelEvent(self, ev):
+        if self._scroll_widget:
+            delta = ev.angleDelta().y()
+            max_scroll = max(0, self._scroll_widget._rect.height - self._rect.height)
+            move = (delta / 120.0) * 40 
+            self._scroll_y = max(0, min(max_scroll, self._scroll_y - move))
+            ev.accept()
+
     def mousePressEvent(self, ev):
         if ev.button() == 4: # Scroll Up
             self._scroll_y = max(0, self._scroll_y - 20)
+            ev.accept()
         elif ev.button() == 5: # Scroll Down
             if self._scroll_widget:
                 max_scroll = max(0, self._scroll_widget._rect.height - self._rect.height)
                 self._scroll_y = min(max_scroll, self._scroll_y + 20)
+                ev.accept()
         else:
             # Propagate click to child?
             # Simple hit test
