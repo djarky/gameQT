@@ -152,7 +152,9 @@ class QRectF:
 class QUrl:
     def __init__(self, path=""): self._path = path
     def toLocalFile(self):
-        if self._path.startswith('file:///'): return self._path[8:]
+        # Handle file:/// URLs (file:// + /absolute/path)
+        if self._path.startswith('file://'):
+            return self._path[7:]  # Remove 'file://' keeping the leading /
         return self._path
     def toString(self): return self._path
 
@@ -170,16 +172,35 @@ class QMimeData:
 
 class QClipboard:
     def __init__(self):
-        try: pygame.scrap.init()
-        except: pass
+        self._fallback_text = ""
+        self._scrap_available = False
+        try:
+            pygame.scrap.init()
+            self._scrap_available = True
+        except:
+            pass
+    
     def setText(self, text):
-        pygame.scrap.put(pygame.SCRAP_TEXT, text.encode('utf-8'))
+        self._fallback_text = text
+        if self._scrap_available:
+            try:
+                pygame.scrap.put(pygame.SCRAP_TEXT, text.encode('utf-8'))
+            except:
+                pass
+    
     def text(self):
-        res = pygame.scrap.get(pygame.SCRAP_TEXT)
-        return res.decode('utf-8') if res else ""
+        if self._scrap_available:
+            try:
+                res = pygame.scrap.get(pygame.SCRAP_TEXT)
+                if res:
+                    return res.decode('utf-8')
+            except:
+                pass
+        return self._fallback_text
+    
     def setMimeData(self, mime):
         if mime.hasText(): self.setText(mime.text())
-        # Add basic support for other types if needed
+    
     def mimeData(self):
         m = QMimeData()
         t = self.text()
