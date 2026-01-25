@@ -9,7 +9,11 @@ class QWidget(QObject):
         super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet = pygame.Rect(0, 0, 100, 100), False, None, ""
         self._parent, self._children = parent, []
         if parent and hasattr(parent, '_children'): parent._children.append(self)
-        self.clicked = Signal()
+        self.clicked = Signal(); self._accept_drops = False
+    def setAcceptDrops(self, b): self._accept_drops = b
+    def acceptDrops(self): return self._accept_drops
+    def dragEnterEvent(self, event): pass
+    def dropEvent(self, event): pass
     def setWindowTitle(self, title):
         self._window_title = title
         from .widgets import QMainWindow
@@ -128,6 +132,29 @@ class QWidget(QObject):
                 return False # Let it bubble or be handled by specific logic
         
         return False
+    
+    def _handle_drop_event(self, event, offset):
+        """Handle drag and drop events (DROPFILE, etc)"""
+        if not self.isVisible(): return False
+        my_pos = offset + pygame.Vector2(self._rect.topleft)
+        
+        # 1. Deliver to children first (highest z-order)
+        for child in reversed(self._children): 
+            if child._handle_drop_event(event, my_pos):
+                return True
+        
+        # 2. Check if THIS widget accepts drops and mouse is over it
+        if self._accept_drops:
+            mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+            if mouse_rect.collidepoint(pygame.mouse.get_pos()):
+                from .application import QDragEnterEvent, QDropEvent
+                if isinstance(event, QDragEnterEvent):
+                    if hasattr(self, 'dragEnterEvent'): self.dragEnterEvent(event)
+                elif isinstance(event, QDropEvent):
+                    if hasattr(self, 'dropEvent'): self.dropEvent(event)
+                return event.isAccepted()
+        return False
+
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
         if self._layout and hasattr(self._layout, 'arrange'): 

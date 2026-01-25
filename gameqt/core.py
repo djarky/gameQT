@@ -12,6 +12,9 @@ class Qt:
         AlignVCenter = 0x0080
         AlignCenter = AlignHCenter | AlignVCenter
     class MouseButton: LeftButton = 0x01; RightButton = 0x02; MidButton = 0x04; NoButton = 0x00
+    DROPFILE = pygame.DROPFILE
+    DROPBEGIN = pygame.DROPBEGIN
+    DROPCOMPLETE = pygame.DROPCOMPLETE
     class Key:
         Key_Delete = pygame.K_DELETE; Key_R = pygame.K_r; Key_J = pygame.K_j
         Key_Return = pygame.K_RETURN; Key_Enter = pygame.K_KP_ENTER; Key_Escape = pygame.K_ESCAPE
@@ -145,6 +148,43 @@ class QRectF:
                     other.x() + other.width() <= self._x or
                     self._y + self._h <= other.y() or
                     other.y() + other.height() <= self._y)
+
+class QUrl:
+    def __init__(self, path=""): self._path = path
+    def toLocalFile(self):
+        if self._path.startswith('file:///'): return self._path[8:]
+        return self._path
+    def toString(self): return self._path
+
+class QMimeData:
+    def __init__(self): self._data = {}; self._urls = []
+    def setText(self, t): self._data['text/plain'] = t.encode('utf-8')
+    def text(self): return self._data.get('text/plain', b'').decode('utf-8')
+    def hasText(self): return 'text/plain' in self._data
+    def setUrls(self, urls): self._urls = urls
+    def urls(self): return self._urls
+    def hasUrls(self): return len(self._urls) > 0
+    def setData(self, mime, data): self._data[mime] = data
+    def data(self, mime): return self._data.get(mime, b'')
+    def hasImage(self): return 'image/png' in self._data or 'image/jpeg' in self._data
+
+class QClipboard:
+    def __init__(self):
+        try: pygame.scrap.init()
+        except: pass
+    def setText(self, text):
+        pygame.scrap.put(pygame.SCRAP_TEXT, text.encode('utf-8'))
+    def text(self):
+        res = pygame.scrap.get(pygame.SCRAP_TEXT)
+        return res.decode('utf-8') if res else ""
+    def setMimeData(self, mime):
+        if mime.hasText(): self.setText(mime.text())
+        # Add basic support for other types if needed
+    def mimeData(self):
+        m = QMimeData()
+        t = self.text()
+        if t: m.setText(t)
+        return m
 
 class QMouseEvent:
     def __init__(self, pos, button=Qt.MouseButton.NoButton, buttons=None, modifiers=Qt.KeyboardModifier.NoModifier):

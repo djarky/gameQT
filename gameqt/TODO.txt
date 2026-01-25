@@ -34,8 +34,8 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Soporte para QWheelEvent y scroll de alta precisión (Laptop Trackpads).
 [x] Soporte de metadatos mediante setData() y data() en QGraphicsItem y QTreeWidget.
 [x] Atajos de teclado (Shortcuts) funcionales a nivel de ventana.
-[ ] Soporte para drag & drop externo (archivos al canvas).
-[ ] Implementar conexión real con el Portapapeles del sistema (copiar/pegar externo).
+[x] Soporte para drag & drop externo (archivos al canvas).
+[x] Implementar conexión real con el Portapapeles del sistema (copiar/pegar externo).
 
 5. DIÁLOGOS Y REFINAMIENTO
 --------------------------
