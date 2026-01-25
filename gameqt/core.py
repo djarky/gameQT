@@ -211,3 +211,15 @@ class PyGameModalDialog:
     def handle_event(self, event): pass
     def handle_key(self, event): 
         if event.key == pygame.K_ESCAPE: self.running = False
+
+class QShortcut(QObject):
+    def __init__(self, sequence, parent=None):
+        super().__init__(parent)
+        self._sequence = sequence
+        self.activated = Signal()
+        from .application import QApplication
+        if QApplication._instance:
+            if not hasattr(QApplication._instance, '_shortcuts'):
+                QApplication._instance._shortcuts = []
+            QApplication._instance._shortcuts.append(self)
+    def setKey(self, seq): self._sequence = seq

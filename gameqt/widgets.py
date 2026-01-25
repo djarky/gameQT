@@ -362,6 +362,222 @@ class QPushButton(QWidget):
             txt = font.render(self._text, True, (255, 255, 255))
             screen.blit(txt, (pos.x + (self._rect.width - txt.get_width())//2, pos.y + (self._rect.height - txt.get_height())//2))
 
+class QLineEdit(QWidget):
+    def __init__(self, contents="", parent=None):
+        super().__init__(parent)
+        self._text = contents
+        self._focused = False
+        self.returnPressed = Signal()
+        self.textChanged = Signal(str)
+        self._rect.height = 30 # Default height
+    def setText(self, text): self._text = text; self.textChanged.emit(text)
+    def text(self): return self._text
+    def _draw(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        if not screen: return
+        bg_color = (255, 255, 255)
+        border_color = (100, 150, 240) if self._focused else (180, 180, 180)
+        pygame.draw.rect(screen, bg_color, (pos.x, pos.y, self._rect.width, self._rect.height))
+        pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1)
+        font = pygame.font.SysFont(None, 18)
+        txt = font.render(self._text, True, (20, 20, 20))
+        screen.blit(txt, (pos.x + 5, pos.y + (self._rect.height - txt.get_height())//2))
+        if self._focused and (pygame.time.get_ticks() // 500) % 2 == 0:
+            cursor_x = pos.x + 5 + txt.get_width()
+            pygame.draw.line(screen, (0, 0, 0), (cursor_x, pos.y + 5), (cursor_x, pos.y + self._rect.height - 5), 1)
+    def mousePressEvent(self, ev):
+        self._focused = True
+    def _handle_event(self, event, offset):
+        super()._handle_event(event, offset)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            my_pos = offset + pygame.Vector2(self._rect.topleft)
+            mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+            if not mouse_rect.collidepoint(pygame.mouse.get_pos()):
+                self._focused = False
+        if self._focused and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                self._text = self._text[:-1]
+                self.textChanged.emit(self._text)
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.returnPressed.emit()
+            elif event.unicode and event.unicode.isprintable():
+                self._text += event.unicode
+                self.textChanged.emit(self._text)
+
+class QCheckBox(QWidget):
+    def __init__(self, text="", parent=None):
+        super().__init__(parent)
+        self._text = text
+        self._checked = False
+        self.stateChanged = Signal(int)
+        self._rect.height = 25
+    def setChecked(self, b): self._checked = b; self.stateChanged.emit(Qt.CheckState.Checked if b else Qt.CheckState.Unchecked)
+    def isChecked(self): return self._checked
+    def _draw(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        if not screen: return
+        box_size = 16
+        box_y = pos.y + (self._rect.height - box_size)//2
+        pygame.draw.rect(screen, (255, 255, 255), (pos.x, box_y, box_size, box_size))
+        pygame.draw.rect(screen, (100, 100, 110), (pos.x, box_y, box_size, box_size), 1)
+        if self._checked:
+            pygame.draw.line(screen, (0, 150, 0), (pos.x+3, box_y+box_size//2), (pos.x+box_size//2, box_y+box_size-3), 2)
+            pygame.draw.line(screen, (0, 150, 0), (pos.x+box_size//2, box_y+box_size-3), (pos.x+box_size-3, box_y+3), 2)
+        font = pygame.font.SysFont(None, 18)
+        txt = font.render(self._text, True, (20, 20, 20))
+        screen.blit(txt, (pos.x + box_size + 8, pos.y + (self._rect.height - txt.get_height())//2))
+    def mousePressEvent(self, ev):
+        self.setChecked(not self._checked)
+
+class QRadioButton(QWidget):
+    def __init__(self, text="", parent=None):
+        super().__init__(parent)
+        self._text = text
+        self._checked = False
+        self.toggled = Signal(bool)
+        self._rect.height = 25
+    def setChecked(self, b):
+        if self._checked == b: return
+        self._checked = b
+        if b and self._parent:
+            for child in self._parent._children:
+                if isinstance(child, QRadioButton) and child != self:
+                    child.setChecked(False)
+        self.toggled.emit(b)
+    def isChecked(self): return self._checked
+    def _draw(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        if not screen: return
+        radius = 8
+        center_x = pos.x + radius
+        center_y = pos.y + self._rect.height // 2
+        pygame.draw.circle(screen, (255, 255, 255), (center_x, center_y), radius)
+        pygame.draw.circle(screen, (100, 100, 110), (center_x, center_y), radius, 1)
+        if self._checked:
+            pygame.draw.circle(screen, (100, 150, 240), (center_x, center_y), radius - 3)
+        font = pygame.font.SysFont(None, 18)
+        txt = font.render(self._text, True, (20, 20, 20))
+        screen.blit(txt, (pos.x + radius*2 + 8, pos.y + (self._rect.height - txt.get_height())//2))
+    def mousePressEvent(self, ev):
+        self.setChecked(True)
+
+class QComboBox(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._items = []
+        self._current_index = -1
+        self.currentIndexChanged = Signal(int)
+        self._popup_visible = False
+        self._rect.height = 30
+    def addItem(self, text, data=None):
+        self._items.append({'text': text, 'data': data})
+        if self._current_index == -1: self._current_index = 0
+    def addItems(self, texts):
+        for t in texts: self.addItem(t)
+    def currentIndex(self): return self._current_index
+    def currentText(self): return self._items[self._current_index]['text'] if 0 <= self._current_index < len(self._items) else ""
+    def setCurrentIndex(self, index):
+        if 0 <= index < len(self._items):
+            self._current_index = index
+            self.currentIndexChanged.emit(index)
+    def _draw(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        if not screen: return
+        pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width, self._rect.height))
+        pygame.draw.rect(screen, (180, 180, 180), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
+        # Arrow
+        arrow_x = pos.x + self._rect.width - 20
+        arrow_y = pos.y + self._rect.height // 2
+        pygame.draw.polygon(screen, (80, 80, 80), [(arrow_x, arrow_y - 2), (arrow_x + 10, arrow_y - 2), (arrow_x + 5, arrow_y + 4)])
+        
+        txt_str = self.currentText()
+        font = pygame.font.SysFont(None, 18)
+        txt = font.render(txt_str, True, (20, 20, 20))
+        screen.blit(txt, (pos.x + 5, pos.y + (self._rect.height - txt.get_height())//2))
+        
+        if self._popup_visible:
+            self._draw_popup(pos)
+
+    def _draw_popup(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        item_h = 25
+        popup_h = len(self._items) * item_h
+        popup_rect = pygame.Rect(pos.x, pos.y + self._rect.height, self._rect.width, popup_h)
+        pygame.draw.rect(screen, (245, 245, 250), popup_rect)
+        pygame.draw.rect(screen, (150, 150, 150), popup_rect, 1)
+        font = pygame.font.SysFont(None, 18)
+        for i, item in enumerate(self._items):
+            iy = popup_rect.y + i * item_h
+            if pygame.Rect(popup_rect.x, iy, popup_rect.width, item_h).collidepoint(pygame.mouse.get_pos()):
+                pygame.draw.rect(screen, (200, 220, 255), (popup_rect.x+1, iy+1, popup_rect.width-2, item_h-2))
+            txt = font.render(item['text'], True, (20, 20, 20))
+            screen.blit(txt, (popup_rect.x + 5, iy + (item_h - txt.get_height())//2))
+
+    def mousePressEvent(self, ev):
+        if self._popup_visible:
+            # Check which item was clicked
+            local_y = ev.pos().y() - self._rect.height
+            if 0 <= local_y < len(self._items) * 25:
+                index = int(local_y // 25)
+                self.setCurrentIndex(index)
+            self._popup_visible = False
+        else:
+            self._popup_visible = True
+
+    def _handle_event(self, event, offset):
+        if self._popup_visible and event.type == pygame.MOUSEBUTTONDOWN:
+            my_pos = offset + pygame.Vector2(self._rect.topleft)
+            popup_rect = pygame.Rect(my_pos.x, my_pos.y + self._rect.height, self._rect.width, len(self._items) * 25)
+            if not popup_rect.collidepoint(pygame.mouse.get_pos()):
+                # Allow toggle off if clicking the combo itself again
+                combo_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+                if not combo_rect.collidepoint(pygame.mouse.get_pos()):
+                    self._popup_visible = False
+        super()._handle_event(event, offset)
+
+class QSpinBox(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._value = 0
+        self._min = 0
+        self._max = 99
+        self.valueChanged = Signal(int)
+        self._rect.height = 30
+    def setValue(self, v):
+        v = max(self._min, min(self._max, v))
+        if self._value != v:
+            self._value = v
+            self.valueChanged.emit(v)
+    def value(self): return self._value
+    def setRange(self, mi, ma): self._min, self._max = mi, ma
+    def _draw(self, pos):
+        screen = QApplication._instance._windows[0]._screen
+        if not screen: return
+        pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width - 20, self._rect.height))
+        pygame.draw.rect(screen, (180, 180, 180), (pos.x, pos.y, self._rect.width - 20, self._rect.height), 1)
+        font = pygame.font.SysFont(None, 18)
+        txt = font.render(str(self._value), True, (20, 20, 20))
+        screen.blit(txt, (pos.x + 5, pos.y + (self._rect.height - txt.get_height())//2))
+        
+        # Buttons
+        btn_x = pos.x + self._rect.width - 20
+        pygame.draw.rect(screen, (230, 230, 235), (btn_x, pos.y, 20, self._rect.height//2))
+        pygame.draw.rect(screen, (180, 180, 180), (btn_x, pos.y, 20, self._rect.height//2), 1)
+        pygame.draw.rect(screen, (230, 230, 235), (btn_x, pos.y + self._rect.height//2, 20, self._rect.height//2))
+        pygame.draw.rect(screen, (180, 180, 180), (btn_x, pos.y + self._rect.height//2, 20, self._rect.height//2), 1)
+        
+        # Arrows
+        pygame.draw.polygon(screen, (50, 50, 50), [(btn_x + 5, pos.y + 10), (btn_x + 15, pos.y + 10), (btn_x + 10, pos.y + 4)])
+        pygame.draw.polygon(screen, (50, 50, 50), [(btn_x + 5, pos.y + self._rect.height - 10), (btn_x + 15, pos.y + self._rect.height - 10), (btn_x + 10, pos.y + self._rect.height - 4)])
+
+    def mousePressEvent(self, ev):
+        x, y = ev.pos().x(), ev.pos().y()
+        if x >= self._rect.width - 20:
+            if y < self._rect.height // 2:
+                self.setValue(self._value + 1)
+            else:
+                self.setValue(self._value - 1)
+
 class QSlider(QWidget):
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):
         super().__init__(parent); self.valueChanged = Signal(int); self._val, self._min, self._max = 50, 0, 100
@@ -905,3 +1121,104 @@ class MessageBox(PyGameModalDialog):
                 if r.collidepoint(x, y):
                     self.result = val
                     self.running = False
+
+class QColorDialog(PyGameModalDialog):
+    def __init__(self, initial=None, title="Select Color"):
+        super().__init__(title, 300, 250)
+        from .gui import QColor
+        if initial is None: initial = QColor(255, 255, 255)
+        self.r = initial.r; self.g = initial.g; self.b = initial.b
+    @staticmethod
+    def getColor(initial=None, parent=None, title="Select Color"):
+        from .gui import QColor
+        if initial is None: initial = QColor(255, 255, 255)
+        dlg = QColorDialog(initial, title)
+        res = dlg.exec_()
+        return QColor(dlg.r, dlg.g, dlg.b) if res else initial
+    def draw(self, screen):
+        super().draw(screen)
+        y = self.rect.y + 50
+        for i, (label, val) in enumerate([("R", self.r), ("G", self.g), ("B", self.b)]):
+            font = pygame.font.SysFont(None, 20)
+            txt = font.render(f"{label}: {val}", True, (0,0,0))
+            screen.blit(txt, (self.rect.x + 20, y))
+            # Drawer sliders or just rely on mouse interaction
+            pygame.draw.rect(screen, (200, 200, 200), (self.rect.x + 80, y, 150, 20))
+            pygame.draw.rect(screen, (100, 150, 240), (self.rect.x + 80 + int((val/255)*140), y, 10, 20))
+            y += 40
+        # Preview
+        pygame.draw.rect(screen, (self.r, self.g, self.b), (self.rect.x + 80, y, 150, 40))
+        pygame.draw.rect(screen, (0,0,0), (self.rect.x + 80, y, 150, 40), 1)
+        # OK Button
+        btn_ok = pygame.Rect(self.rect.centerx - 40, self.rect.bottom - 40, 80, 25)
+        pygame.draw.rect(screen, (0, 120, 215), btn_ok, border_radius=3)
+        txt = font.render("OK", True, (255,255,255))
+        screen.blit(txt, (btn_ok.centerx - txt.get_width()//2, btn_ok.centery - txt.get_height()//2))
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.MOUSEMOTION and event.buttons[0]):
+            x, y = event.pos
+            # Check sliders
+            start_y = self.rect.y + 45
+            for i in range(3):
+                slider_rect = pygame.Rect(self.rect.x + 80, start_y + i*40, 150, 25)
+                if slider_rect.collidepoint(x, y):
+                    val = int(max(0, min(255, (x - slider_rect.x) / 150 * 255)))
+                    if i == 0: self.r = val
+                    elif i == 1: self.g = val
+                    else: self.b = val
+            # Check OK button
+            btn_ok = pygame.Rect(self.rect.centerx - 40, self.rect.bottom - 40, 80, 25)
+            if event.type == pygame.MOUSEBUTTONDOWN and btn_ok.collidepoint(x, y):
+                self.result = True
+                self.running = False
+
+class QFontDialog(PyGameModalDialog):
+    def __init__(self, initial=None, title="Select Font"):
+        super().__init__(title, 400, 350)
+        self.fonts = pygame.font.get_fonts()[:20] # Limit for demo
+        self.selected_font = self.fonts[0]
+        self.size = 12
+    @staticmethod
+    def getFont(initial=None, parent=None, title="Select Font"):
+        dlg = QFontDialog(initial, title)
+        res = dlg.exec_()
+        from .gui import QFont
+        return QFont(dlg.selected_font, dlg.size), res
+    def draw(self, screen):
+        super().draw(screen)
+        font = pygame.font.SysFont(None, 18)
+        for i, f in enumerate(self.fonts):
+            y = self.rect.y + 50 + i*15
+            color = (0, 120, 215) if f == self.selected_font else (0,0,0)
+            txt = font.render(f, True, color)
+            screen.blit(txt, (self.rect.x + 20, y))
+        # Size SpinBox replacement
+        y_size = self.rect.bottom - 80
+        txt = font.render(f"Size: {self.size}", True, (0,0,0))
+        screen.blit(txt, (self.rect.x + 20, y_size))
+        # Simple buttons
+        btn_ok = pygame.Rect(self.rect.centerx - 40, self.rect.bottom - 40, 80, 25)
+        pygame.draw.rect(screen, (0, 120, 215), btn_ok, border_radius=3)
+        txt = font.render("OK", True, (255,255,255))
+        screen.blit(txt, (btn_ok.centerx - txt.get_width()//2, btn_ok.centery - txt.get_height()//2))
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
+            # Select font
+            for i, f in enumerate(self.fonts):
+                if pygame.Rect(self.rect.x + 20, self.rect.y + 50 + i*15, 200, 15).collidepoint(x, y):
+                    self.selected_font = f
+            # Check OK button
+            btn_ok = pygame.Rect(self.rect.centerx - 40, self.rect.bottom - 40, 80, 25)
+            if btn_ok.collidepoint(x, y):
+                self.result = True
+                self.running = False
+
+class QStackedWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        from .layouts import QStackedLayout
+        self._layout = QStackedLayout(self)
+    def addWidget(self, w): self._layout.addWidget(w)
+    def setCurrentIndex(self, index): self._layout.setCurrentIndex(index)
+    def currentIndex(self): return self._layout._current_index

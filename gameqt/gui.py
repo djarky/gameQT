@@ -81,7 +81,36 @@ class QPainter:
     def drawRect(self, rect):
         if not self._device: return
         r = rect.toRect() if hasattr(rect, 'toRect') else rect
-        pygame.draw.rect(self._device, (0,0,0), r, 1) # Simple black outline
+        # Fill
+        if self._brush._style == 1: # SolidPattern
+            pygame.draw.rect(self._device, self._brush._color.to_pygame(), r)
+        # Stroke
+        pygame.draw.rect(self._device, self._pen._color.to_pygame(), r, self._pen._width)
+    def drawLine(self, *args):
+        if not self._device: return
+        # drawLine(p1, p2) or drawLine(x1, y1, x2, y2)
+        if len(args) == 2:
+            p1, p2 = args
+            pygame.draw.line(self._device, self._pen._color.to_pygame(), (p1.x(), p1.y()), (p2.x(), p2.y()), self._pen._width)
+        elif len(args) == 4:
+            x1, y1, x2, y2 = args
+            pygame.draw.line(self._device, self._pen._color.to_pygame(), (x1, y1), (x2, y2), self._pen._width)
+    def drawEllipse(self, rect):
+        if not self._device: return
+        r = rect.toRect() if hasattr(rect, 'toRect') else rect
+        # Fill
+        if self._brush._style == 1:
+            pygame.draw.ellipse(self._device, self._brush._color.to_pygame(), r)
+        # Stroke
+        pygame.draw.ellipse(self._device, self._pen._color.to_pygame(), r, self._pen._width)
+    def drawPolygon(self, points):
+        if not self._device: return
+        pts = [(p.x(), p.y()) for p in points]
+        # Fill
+        if self._brush._style == 1:
+            pygame.draw.polygon(self._device, self._brush._color.to_pygame(), pts)
+        # Stroke
+        pygame.draw.polygon(self._device, self._pen._color.to_pygame(), pts, self._pen._width)
     def drawPixmap(self, *args):
         if not self._device: return
         # Handle different signatures: drawPixmap(rect, pixmap) or drawPixmap(x, y, pixmap)
@@ -141,8 +170,31 @@ class QIcon:
     def __init__(self, *args): (setattr(self, 'pixmap', args[0]) if args else None)
 class QKeySequence:
     class StandardKey: Cut = 1; Copy = 2; Paste = 3
+    def __init__(self, key_str):
+        self._key_str = key_str
+        self._keys = []
+        self._modifiers = 0
+        
+        parts = key_str.split('+')
+        for p in parts:
+            p = p.strip().upper()
+            if p == 'CTRL': self._modifiers |= pygame.KMOD_CTRL
+            elif p == 'ALT': self._modifiers |= pygame.KMOD_ALT
+            elif p == 'SHIFT': self._modifiers |= pygame.KMOD_SHIFT
+            else:
+                # Try to find the key in pygame constants
+                try: 
+                    k_attr = f"K_{p.lower()}" if len(p) == 1 else f"K_{p}"
+                    self._keys.append(getattr(pygame, k_attr))
+                except: pass
+    
+    def matches(self, key, mods):
+        # Simplistic check
+        if not self._keys: return False
+        return key == self._keys[0] and (mods & self._modifiers) == self._modifiers
+
     @staticmethod
-    def matches(k1, k2): return False
+    def matches_static(k1, k2): return False
 
 class QTextCursor:
     class SelectionType: Document = 1

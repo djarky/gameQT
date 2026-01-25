@@ -8,6 +8,7 @@ class QApplication:
         pygame.init()
         QApplication._instance = self
         self._windows = []
+        self._shortcuts = []
     def setApplicationName(self, name):
         self._app_name = name
         if self._windows:
@@ -34,6 +35,13 @@ class QApplication:
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT: running = False
+                elif event.type == pygame.KEYDOWN:
+                    # Check shortcuts
+                    for shortcut in self._shortcuts:
+                        if hasattr(shortcut._sequence, 'matches') and shortcut._sequence.matches(event.key, event.mod):
+                            shortcut.activated.emit()
+                            # Should we break here? Usually yes if shortcut is triggered
+                            break
                 elif event.type == pygame.VIDEORESIZE:
                     for win in self._windows:
                         # QMainWindow is imported here to avoid circular dependency
