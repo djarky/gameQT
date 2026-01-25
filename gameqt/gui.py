@@ -63,12 +63,14 @@ class QPainter:
         self._device = device
         self._pen = QPen()
         self._brush = QBrush()
+        self._transform = QTransform()
         self._state_stack = []  # Stack for save/restore
     def save(self):
         # Save current state
         self._state_stack.append({
             'pen': self._pen,
-            'brush': self._brush
+            'brush': self._brush,
+            'transform': QTransform(*self._transform._m[:2], *self._transform._m[3:5], *self._transform._m[6:8])
         })
     def restore(self):
         # Restore previous state
@@ -76,41 +78,58 @@ class QPainter:
             state = self._state_stack.pop()
             self._pen = state['pen']
             self._brush = state['brush']
+            self._transform = state['transform']
     def setPen(self, pen): self._pen = pen
     def setBrush(self, brush): self._brush = brush
+    def setTransform(self, transform): self._transform = transform
+    def transform(self): return self._transform
+    def translate(self, dx, dy): self._transform.translate(dx, dy)
+    def scale(self, sx, sy): self._transform.scale(sx, sy)
+    def rotate(self, angle): self._transform.rotate(angle)
     def drawRect(self, rect):
         if not self._device: return
         r = rect.toRect() if hasattr(rect, 'toRect') else rect
+        # Apply current transform translation and scale
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+        r.x = int(r.x * sx + tx); r.y = int(r.y * sy + ty)
+        r.width = int(r.width * sx); r.height = int(r.height * sy)
+        
         # Fill
         if self._brush._style == 1: # SolidPattern
             pygame.draw.rect(self._device, self._brush._color.to_pygame(), r)
+        elif self._brush._style == 2 and hasattr(self._brush, '_gradient'):
+            # Simple Vertical Gradient
+            grad = self._brush._gradient
+            if len(grad._stops) >= 2:
+                c1 = grad._stops[0][1].to_pygame(); c2 = grad._stops[-1][1].to_pygame()
+                for i in range(r.height):
+                    ratio = i / r.height
+                    c = [int(c1[j]*(1-ratio) + c2[j]*ratio) for j in range(3)]
+                    pygame.draw.line(self._device, c, (r.x, r.y + i), (r.x + r.width, r.y + i))
+            else: pygame.draw.rect(self._device, (200, 200, 200), r)
+        
         # Stroke
-        pygame.draw.rect(self._device, self._pen._color.to_pygame(), r, self._pen._width)
+        if self._pen._style > 0:
+            pygame.draw.rect(self._device, self._pen._color.to_pygame(), r, self._pen._width)
     def drawLine(self, *args):
         if not self._device: return
-        # drawLine(p1, p2) or drawLine(x1, y1, x2, y2)
-        if len(args) == 2:
-            p1, p2 = args
-            pygame.draw.line(self._device, self._pen._color.to_pygame(), (p1.x(), p1.y()), (p2.x(), p2.y()), self._pen._width)
-        elif len(args) == 4:
-            x1, y1, x2, y2 = args
-            pygame.draw.line(self._device, self._pen._color.to_pygame(), (x1, y1), (x2, y2), self._pen._width)
+        p1, p2 = (args[0], args[1]) if len(args) == 2 else (QPointF(args[0], args[1]), QPointF(args[2], args[3]))
+        p1_t, p2_t = self._transform.map(p1), self._transform.map(p2)
+        pygame.draw.line(self._device, self._pen._color.to_pygame(), (p1_t.x(), p1_t.y()), (p2_t.x(), p2_t.y()), self._pen._width)
     def drawEllipse(self, rect):
         if not self._device: return
         r = rect.toRect() if hasattr(rect, 'toRect') else rect
-        # Fill
-        if self._brush._style == 1:
-            pygame.draw.ellipse(self._device, self._brush._color.to_pygame(), r)
-        # Stroke
-        pygame.draw.ellipse(self._device, self._pen._color.to_pygame(), r, self._pen._width)
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+        r.x = int(r.x * sx + tx); r.y = int(r.y * sy + ty); r.width = int(r.width * sx); r.height = int(r.height * sy)
+        if self._brush._style == 1: pygame.draw.ellipse(self._device, self._brush._color.to_pygame(), r)
+        if self._pen._style > 0: pygame.draw.ellipse(self._device, self._pen._color.to_pygame(), r, self._pen._width)
     def drawPolygon(self, points):
         if not self._device: return
-        pts = [(p.x(), p.y()) for p in points]
-        # Fill
-        if self._brush._style == 1:
-            pygame.draw.polygon(self._device, self._brush._color.to_pygame(), pts)
-        # Stroke
-        pygame.draw.polygon(self._device, self._pen._color.to_pygame(), pts, self._pen._width)
+        pts = [(p.x(), p.y()) for p in [self._transform.map(p) for p in points]]
+        if self._brush._style == 1: pygame.draw.polygon(self._device, self._brush._color.to_pygame(), pts)
+        if self._pen._style > 0: pygame.draw.polygon(self._device, self._pen._color.to_pygame(), pts, self._pen._width)
     def drawPixmap(self, *args):
         if not self._device: return
         # Handle different signatures: drawPixmap(rect, pixmap) or drawPixmap(x, y, pixmap)
@@ -158,13 +177,55 @@ class QPen:
         self._style = style if style is not None else 1  # Qt.PenStyle.SolidLine
 class QBrush:
     def __init__(self, color=None, style=None):
-        self._color = QColor(color) if color is not None else QColor(0,0,0,0)
-        self._style = style if style is not None else 1  # Qt.BrushStyle.SolidPattern
+        if hasattr(color, 'setColorAt'): # It's a gradient
+            self._color = QColor(0,0,0,0); self._style = 2; self._gradient = color
+        else:
+            self._color = QColor(color) if color is not None else QColor(0,0,0,0)
+            self._style = style if style is not None else 1  # Qt.BrushStyle.SolidPattern
+
+class QGradient:
+    def __init__(self): self._stops = []
+    def setColorAt(self, pos, color): self._stops.append((pos, QColor(color)))
+
+class QLinearGradient(QGradient):
+    def __init__(self, x1, y1, x2, y2):
+        super().__init__()
+        self._p1 = (x1, y1); self._p2 = (x2, y2)
+
+class QRadialGradient(QGradient):
+    def __init__(self, cx, cy, radius):
+        super().__init__()
+        self._center = (cx, cy); self._radius = radius
 class QTransform:
+    def __init__(self, m11=1.0, m12=0.0, m21=0.0, m22=1.0, dx=0.0, dy=0.0):
+        self._m = [m11, m12, 0.0, m21, m22, 0.0, dx, dy, 1.0]
+    def translate(self, dx, dy):
+        self._m[6] += dx * self._m[0] + dy * self._m[3]
+        self._m[7] += dx * self._m[1] + dy * self._m[4]
+        return self
+    def scale(self, sx, sy):
+        self._m[0] *= sx; self._m[1] *= sx
+        self._m[3] *= sy; self._m[4] *= sy
+        return self
+    def rotate(self, angle): # angle in degrees
+        import math
+        rad = math.radians(angle)
+        c, s = math.cos(rad), math.sin(rad)
+        m11, m12, m21, m22 = self._m[0], self._m[1], self._m[3], self._m[4]
+        self._m[0] = m11 * c + m21 * s
+        self._m[1] = m12 * c + m22 * s
+        self._m[3] = m11 * -s + m21 * c
+        self._m[4] = m12 * -s + m22 * c
+        return self
+    def map(self, p):
+        x, y = (p.x(), p.y()) if hasattr(p, 'x') else (p[0], p[1])
+        nx = x * self._m[0] + y * self._m[3] + self._m[6]
+        ny = x * self._m[1] + y * self._m[4] + self._m[7]
+        return QPointF(nx, ny)
     @staticmethod
-    def fromScale(sx, sy): return QTransform()
-    def m11(self): return 1.0
-    def m22(self): return 1.0
+    def fromScale(sx, sy): return QTransform().scale(sx, sy)
+    def m11(self): return self._m[0]
+    def m22(self): return self._m[4]
 
 class QIcon:
     def __init__(self, *args): (setattr(self, 'pixmap', args[0]) if args else None)

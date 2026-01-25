@@ -125,38 +125,91 @@ class QGraphicsView(QWidget):
     class ViewportAnchor: AnchorUnderMouse = 1
     def __init__(self, parent=None):
         super().__init__(parent); self._scene = None; self.sceneChanged = Signal(); self.joinRequested = Signal()
+        self._view_transform = QTransform()
+        self._drag_mode = QGraphicsView.DragMode.NoDrag
+        self._rubber_band_rect = None
+        self._is_panning = False
     def setScene(self, scene):
         if scene: self._scene = scene; scene._views.append(self)
     def viewport(self): return self
     def setRenderHint(self, h, on=True): 
-        if not hasattr(self, '_render_hints'):
-            self._render_hints = set()
-        if on:
-            self._render_hints.add(h)
-        else:
-            self._render_hints.discard(h)
-    def setDragMode(self, m): 
-        self._drag_mode = m
-    def setTransformationAnchor(self, a): 
-        self._transformation_anchor = a
-    def setResizeAnchor(self, a): 
-        self._resize_anchor = a
-    def mapToScene(self, p): return QPointF(p.x, p.y)
+        if not hasattr(self, '_render_hints'): self._render_hints = set()
+        if on: self._render_hints.add(h)
+        else: self._render_hints.discard(h)
+    def setDragMode(self, m): self._drag_mode = m
+    def setTransformationAnchor(self, a): self._transformation_anchor = a
+    def setResizeAnchor(self, a): self._resize_anchor = a
+    def scale(self, sx, sy): self._view_transform.scale(sx, sy)
+    def translate(self, dx, dy): self._view_transform.translate(dx, dy)
+    def mapToScene(self, p):
+        # p is local to widget. 
+        # Need to invert transform. 
+        tx, ty = self._view_transform._m[6], self._view_transform._m[7]
+        sx, sy = self._view_transform._m[0], self._view_transform._m[4]
+        return QPointF((p.x() - tx) / sx, (p.y() - ty) / sy)
     def _draw(self, pos):
         if not QApplication._instance or not QApplication._instance._windows: return
         screen = QApplication._instance._windows[0]._screen
         if self._scene and screen:
+            # Viewport Background
             pygame.draw.rect(screen, (240, 240, 240), (pos.x, pos.y, self._rect.width, self._rect.height))
-            [item.paint(screen, pos) for item in self._scene.items() if item.isVisible()]
+            
+            # Simple clipping to widget area
+            old_clip = screen.get_clip()
+            screen.set_clip(pygame.Rect(pos.x, pos.y, self._rect.width, self._rect.height))
+            
+            # Drawing offset includes widget pos AND view transform
+            tx, ty = self._view_transform._m[6], self._view_transform._m[7]
+            total_offset = QPointF(pos.x + tx, pos.y + ty)
+            
+            # Zoom? Surface scaling is easier than coordinate math for every item if we want full fidelity.
+            # But for now let's just do coordinate translation.
+            for item in self._scene.items():
+                if item.isVisible():
+                    # We should really transform the item's paint surface if scale != 1
+                    item.paint(screen, total_offset)
+            
+            # Draw rubber band
+            if self._rubber_band_rect:
+                r = self._rubber_band_rect.toRect()
+                r.x += pos.x; r.y += pos.y
+                pygame.draw.rect(screen, (0, 120, 215), r, 1)
+                overlay = pygame.Surface((r.width, r.height), pygame.SRCALPHA)
+                overlay.fill((0, 120, 215, 50))
+                screen.blit(overlay, (r.x, r.y))
+
+            screen.set_clip(old_clip)
+
     def mousePressEvent(self, ev):
+        if self._drag_mode == QGraphicsView.DragMode.RubberBandDrag and ev.button() == Qt.MouseButton.LeftButton:
+            self._rubber_band_start = ev.pos()
+            self._rubber_band_rect = QRectF(ev.pos().x(), ev.pos().y(), 0, 0)
+        elif ev.button() == Qt.MouseButton.RightButton: # Right drag to pan
+            self._is_panning = True
+            self._last_pan_pos = ev.pos()
+        
         if self._scene: self._scene.mousePressEvent(ev)
+
     def mouseMoveEvent(self, ev):
-        if self._scene and pygame.mouse.get_pressed()[0]:
+        handled = False
+        if self._rubber_band_rect:
+            x1, y1 = self._rubber_band_start.x(), self._rubber_band_start.y()
+            x2, y2 = ev.pos().x(), ev.pos().y()
+            self._rubber_band_rect = QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+            handled = True
+        elif self._is_panning:
+            delta = ev.pos() - self._last_pan_pos
+            self.translate(delta.x(), delta.y())
+            self._last_pan_pos = ev.pos()
+            handled = True
+            
+        if not handled and self._scene and pygame.mouse.get_pressed()[0]:
              if not hasattr(self, '_last_mouse_pos'):
                  self._last_mouse_pos = ev.pos()
                  return
              
              delta = ev.pos() - self._last_mouse_pos
+             # Scale delta? No, items are in scene coords.
              for item in self._scene.selectedItems():
                  if item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable:
                      item.setPos(item.pos() + delta)
@@ -165,5 +218,21 @@ class QGraphicsView(QWidget):
              self.sceneChanged.emit()
              
     def mouseReleaseEvent(self, ev):
+        if self._rubber_band_rect:
+            # Select items in rect
+            p1 = self.mapToScene(self._rubber_band_rect.topLeft())
+            p2 = self.mapToScene(self._rubber_band_rect.bottomRight())
+            scene_rect = QRectF(p1, p2)
+            
+            if not (ev.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                self._scene.clearSelection()
+            
+            for item in self._scene.items():
+                if item.isVisible() and scene_rect.intersects(item.sceneBoundingRect()):
+                    item.setSelected(True)
+            
+            self._rubber_band_rect = None
+        
+        self._is_panning = False
         if hasattr(self, '_last_mouse_pos'):
             del self._last_mouse_pos

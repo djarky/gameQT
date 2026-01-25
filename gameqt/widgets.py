@@ -20,7 +20,14 @@ class QWidget(QObject):
     def setCentralWidget(self, widget):
         widget._set_parent(self); widget.show()
         widget._rect = pygame.Rect(0, 0, self._rect.width, self._rect.height)
-    def setStyleSheet(self, ss): self._stylesheet = ss
+    def setStyleSheet(self, ss):
+        self._stylesheet = ss
+        # Basic parsing
+        self._styles = {}
+        for rule in ss.split(';'):
+            if ':' in rule:
+                k, v = rule.split(':', 1)
+                self._styles[k.strip().lower()] = v.strip().lower()
     def show(self):
         self._visible = True
         for child in self._children:
@@ -104,6 +111,15 @@ class QWidget(QObject):
                 font = pygame.font.SysFont(None, 18)
                 txt = font.render(class_name, True, (80, 80, 90))
                 screen.blit(txt, (pos.x + 4, pos.y + 4))
+        
+        # Apply CSS-like styles if present
+        if hasattr(self, '_styles'):
+            if 'background-color' in self._styles:
+                try: pygame.draw.rect(screen, QColor(self._styles['background-color']).to_pygame(), (pos.x, pos.y, self._rect.width, self._rect.height))
+                except: pass
+            if 'border' in self._styles:
+                # Simplistic border
+                pygame.draw.rect(screen, (100, 100, 100), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
     def statusBar(self):
         class MockStatusBar:
             def addWidget(self, w): 
@@ -696,25 +712,19 @@ class QTabWidget(QWidget):
 class QTextEdit(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._html = ""
-        self._lines = []
-        
+        self._html = ""; self._plain_text = ""; self._lines = []; self._focused = False; self._read_only = False
+        self.textChanged = Signal()
+    def setPlainText(self, t): self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit()
+    def toPlainText(self): return self._plain_text
+    def setText(self, t): self.setPlainText(t)
     def setHtml(self, h): 
-        self._html = h
-        # Better parsing: Use regex to strip tags
-        import re
-        # Remove <style>...</style>
+        self._html = h; import re
         text = re.sub(r'<style.*?>.*?</style>', '', h, flags=re.DOTALL)
-        # Replace common block tags with newlines
         text = re.sub(r'</?(p|div|h[1-6]|br|tr|li).*?>', '\n', text)
-        # Remove all other tags
         text = re.sub(r'<[^>]+>', '', text)
-        # Fix multiple newlines
-        text = re.sub(r'\n+', '\n', text).strip()
-        
-        self._lines = text.split('\n')
-        
-    def setReadOnly(self, b): pass
+        self._plain_text = re.sub(r'\n+', '\n', text).strip()
+        self._lines = self._plain_text.split('\n')
+    def setReadOnly(self, b): self._read_only = b
     def _draw(self, pos):
         super()._draw(pos)
         font = pygame.font.SysFont("Arial", 14)
@@ -743,15 +753,44 @@ class QTextEdit(QWidget):
                         txt = font.render(draw_line, True, (0, 0, 0))
                         screen.blit(txt, (pos.x + 5, y))
                         y += line_height
-                        draw_line = word
-                if draw_line:
-                    txt = font.render(draw_line, True, (0, 0, 0))
-                    screen.blit(txt, (pos.x + 5, y))
-                    y += line_height
-            else:
-                y += line_height
-        
+        if self._focused and (pygame.time.get_ticks() // 500) % 2 == 0:
+             # Cursor at the end for now
+             # This is a very simplistic cursor. For proper text editing,
+             # cursor position needs to be tracked within lines and characters.
+             # For now, it just blinks at the end of the last drawn line.
+             cursor_x = pos.x + 5
+             if self._lines:
+                 last_line_text = self._lines[-1]
+                 # Re-calculate width of the last line to place cursor correctly
+                 font = pygame.font.SysFont("Arial", 14)
+                 # This assumes no word wrap for the last line for cursor placement
+                 cursor_x += font.size(last_line_text)[0]
+             
+             pygame.draw.line(screen, (0,0,0), (cursor_x, y - line_height + 2), (cursor_x, y - 2), 1)
+
         screen.set_clip(old_clip)
+
+    def mousePressEvent(self, ev): self._focused = True
+    def _handle_event(self, event, offset):
+        super()._handle_event(event, offset)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            my_pos = offset + pygame.Vector2(self._rect.topleft)
+            if not pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height).collidepoint(pygame.mouse.get_pos()):
+                self._focused = False
+        if self._focused and not self._read_only and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                if self._plain_text:
+                    self._plain_text = self._plain_text[:-1]
+                    self._lines = self._plain_text.split('\n')
+                    self.textChanged.emit()
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self._plain_text += '\n'
+                self._lines = self._plain_text.split('\n')
+                self.textChanged.emit()
+            elif event.unicode and event.unicode.isprintable():
+                self._plain_text += event.unicode
+                self._lines = self._plain_text.split('\n')
+                self.textChanged.emit()
 
 class QScrollArea(QWidget):
     class Shape: NoFrame = 0
@@ -1213,6 +1252,33 @@ class QFontDialog(PyGameModalDialog):
             if btn_ok.collidepoint(x, y):
                 self.result = True
                 self.running = False
+
+class QGroupBox(QWidget):
+    def __init__(self, title="", parent=None):
+        super().__init__(parent); self._title = title
+    def setTitle(self, t): self._title = t
+    def _draw(self, pos):
+        screen = QApplication.instance()._windows[0]._screen
+        pygame.draw.rect(screen, (150, 150, 160), (pos.x, pos.y + 10, self._rect.width, self._rect.height - 10), 1)
+        font = pygame.font.SysFont(None, 16, bold=True)
+        txt = font.render(self._title, True, (50, 50, 60))
+        pygame.draw.rect(screen, (230, 230, 235), (pos.x + 10, pos.y, txt.get_width() + 4, 20))
+        screen.blit(txt, (pos.x + 12, pos.y + 2))
+
+class QToolBar(QWidget):
+    def __init__(self, title="", parent=None):
+        super().__init__(parent); self._actions = []
+        self._rect.height = 40
+    def addAction(self, action):
+        self._actions.append(action)
+        btn = QPushButton(action.text, self)
+        btn.clicked.connect(action.triggered.emit)
+        # Layout? For now manual
+        btn._rect = pygame.Rect(len(self._children)*85 - 80, 5, 80, 30)
+    def _draw(self, pos):
+        screen = QApplication.instance()._windows[0]._screen
+        pygame.draw.rect(screen, (210, 210, 215), (pos.x, pos.y, self._rect.width, self._rect.height))
+        pygame.draw.line(screen, (160, 160, 170), (pos.x, pos.y + self._rect.height - 1), (pos.x + self._rect.width, pos.y + self._rect.height - 1))
 
 class QStackedWidget(QWidget):
     def __init__(self, parent=None):

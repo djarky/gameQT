@@ -132,6 +132,11 @@ class QRectF:
     def intersected(self, other): return QRectF(self.toRect().clip(other.toRect()))
     def isEmpty(self): return self._w <= 0 or self._h <= 0
     def contains(self, p): return self._x <= p.x() <= self._x + self._w and self._y <= p.y() <= self._y + self._h
+    def intersects(self, other):
+        return not (self._x + self._w <= other.x() or
+                    other.x() + other.width() <= self._x or
+                    self._y + self._h <= other.y() or
+                    other.y() + other.height() <= self._y)
 
 class QMouseEvent:
     def __init__(self, pos, button=Qt.MouseButton.NoButton, modifiers=Qt.KeyboardModifier.NoModifier):

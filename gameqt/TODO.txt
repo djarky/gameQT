@@ -2,28 +2,28 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 
 1. GRÁFICOS Y RENDERIZADO (QPainter & GraphicsView)
 --------------------------------------------------
-[ ] Implementar dibujo de líneas, elipses y polígonos en QPainter.
-[ ] Añadir soporte para gradientes y sombreados básicos.
-[ ] Implementar QTransform real (rotación, escalado, inclinación).
-[ ] Añadir zoom y desplazamiento (pan) en QGraphicsView.
-[ ] Implementar selección por arrastre (rubber-band selection) en la escena.
+[x] Implementar dibujo de líneas, elipses y polígonos en QPainter.
+[x] Añadir soporte para gradientes y sombreados básicos.
+[x] Implementar QTransform real (rotación, escalado, inclinación).
+[x] Añadir zoom y desplazamiento (pan) en QGraphicsView.
+[x] Implementar selección por arrastre (rubber-band selection) en la escena.
 
 2. WIDGETS DE USUARIO (Faltantes y Mejoras)
 -------------------------------------------
-[ ] Crear QLineEdit (entrada de texto básica).
-[ ] Crear QCheckBox y QRadioButton (casillas de verificación).
-[ ] Crear QComboBox (listas desplegables).
-[ ] Crear QSpinBox (campos numéricos con flechas).
-[ ] Convertir QTextEdit en un editor real (actualmente es solo lectura).
-[ ] Implementar QGroupBox y QToolBar.
-[ ] Añadir soporte de CSS básico para QWidget.setStyleSheet.
+[x] Crear QLineEdit (entrada de texto básica).
+[x] Crear QCheckBox y QRadioButton (casillas de verificación).
+[x] Crear QComboBox (listas desplegables).
+[x] Crear QSpinBox (campos numéricos con flechas).
+[x] Convertir QTextEdit en un editor real (actualmente es solo lectura).
+[x] Implementar QGroupBox y QToolBar.
+[x] Añadir soporte de CSS básico para QWidget.setStyleSheet.
 [ ] Mejorar el parser de HTML (soporte para tablas y alineaciones complejas).
 
 3. LAYOUTS Y ORGANIZACIÓN
 -------------------------
-[ ] Implementar QGridLayout (organización en rejilla).
+[x] Implementar QGridLayout (organización en rejilla).
 [ ] Implementar QFormLayout (parejas etiqueta-campo).
-[ ] Implementar QStackedWidget y QStackedLayout (múltiples capas).
+[x] Implementar QStackedWidget y QStackedLayout (múltiples capas).
 [ ] Refinar la lógica de alineación (AlignmentFlags) en todos los layouts.
 
 4. SISTEMA Y DATOS
@@ -31,10 +31,10 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [ ] Implementar conexión real con el Portapapeles del sistema (copiar/pegar externo).
 [ ] Crear un sistema real de Model/View (QAbstractItemModel).
 [ ] Soporte para drag & drop externo (archivos al canvas).
-[ ] Atajos de teclado (Shortcuts) funcionales a nivel de ventana.
+[x] Atajos de teclado (Shortcuts) funcionales a nivel de ventana.
 
 5. DIÁLOGOS
 -----------
-[ ] Crear un QColorDialog para selección de colores.
-[ ] Crear un QFontDialog.
-[ ] Refinar el explorador de archivos (QFileDialog) para que sea más intuitivo.
+[x] Crear un QColorDialog para selección de colores.
+[x] Crear un QFontDialog.
+[x] Refinar el explorador de archivos (QFileDialog) para que sea más intuitivo.
