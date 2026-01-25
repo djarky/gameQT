@@ -28,6 +28,8 @@ class QPixmap:
         elif isinstance(arg, pygame.Surface): self.surface = arg
         elif isinstance(arg, QSize): self.surface = pygame.Surface((arg.width(), arg.height()), pygame.SRCALPHA)
         else: self.surface = None
+    @staticmethod
+    def fromImage(img): return QPixmap(img.surface) if hasattr(img, 'surface') else QPixmap()
     def width(self): return self.surface.get_width() if self.surface else 0
     def height(self): return self.surface.get_height() if self.surface else 0
     def rect(self): return QRectF(0, 0, self.width(), self.height())
@@ -54,8 +56,22 @@ class QPixmap:
             return False
 
 class QImage:
-    def __init__(self, *args): pass
-    def isNull(self): return True
+    class Format:
+        Format_RGB888 = 13
+        Format_RGBA8888 = 26
+    Format_RGB888 = 13
+    Format_RGBA8888 = 26
+    def __init__(self, *args):
+        self.surface = None
+        if len(args) >= 3:
+            if isinstance(args[0], (bytes, bytearray)):
+                data, w, h, bpl, fmt = args
+                mode = "RGBA" if fmt in (QImage.Format_RGBA8888, QImage.Format.Format_RGBA8888) else "RGB"
+                self.surface = pygame.image.fromstring(bytes(data), (w, h), mode)
+            else:
+                w, h, fmt = args[:3]
+                self.surface = pygame.Surface((w, h), pygame.SRCALPHA)
+    def isNull(self): return self.surface is None
 
 class QPainter:
     class RenderHint: Antialiasing = 1; SmoothPixmapTransform = 2

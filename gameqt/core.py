@@ -3,7 +3,14 @@ import pygame
 class Qt:
     class Orientation: Horizontal = 1; Vertical = 2
     class WindowType: Widget = 0; Window = 1; Dialog = 2; Sheet = 3; Drawer = 4; Popup = 5; Tool = 6; ToolTip = 7; SplashScreen = 8
-    class AlignmentFlag: AlignCenter = 0x0084; AlignRight = 0x0002; AlignLeft = 0x0001
+    class AlignmentFlag: 
+        AlignLeft = 0x0001
+        AlignRight = 0x0002
+        AlignHCenter = 0x0004
+        AlignTop = 0x0020
+        AlignBottom = 0x0040
+        AlignVCenter = 0x0080
+        AlignCenter = AlignHCenter | AlignVCenter
     class MouseButton: LeftButton = 1; RightButton = 2; NoButton = 0
     class Key:
         Key_Delete = pygame.K_DELETE; Key_R = pygame.K_r; Key_J = pygame.K_j

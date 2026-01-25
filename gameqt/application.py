@@ -29,12 +29,14 @@ class QApplication:
                 print(f"[Clipboard] Data set: {data}")
             def image(self): return QImage()
         return MockClipboard()
+    def quit(self):
+        self._running = False
     def exec(self):
-        clock = pygame.time.Clock(); running = True
-        while running:
+        clock = pygame.time.Clock(); self._running = True
+        while self._running:
             events = pygame.event.get()
             for event in events:
-                if event.type == pygame.QUIT: running = False
+                if event.type == pygame.QUIT: self._running = False
                 elif event.type == pygame.KEYDOWN:
                     # Check shortcuts
                     for shortcut in self._shortcuts:

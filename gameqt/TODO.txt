@@ -22,9 +22,9 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 3. LAYOUTS Y ORGANIZACIÓN
 -------------------------
 [x] Implementar QGridLayout (organización en rejilla).
-[ ] Implementar QFormLayout (parejas etiqueta-campo).
+[x] Implementar QFormLayout (parejas etiqueta-campo).
 [x] Implementar QStackedWidget y QStackedLayout (múltiples capas).
-[ ] Refinar la lógica de alineación (AlignmentFlags) en todos los layouts.
+[x] Refinar la lógica de alineación (AlignmentFlags) en todos los layouts.
 
 4. SISTEMA Y DATOS
 ------------------

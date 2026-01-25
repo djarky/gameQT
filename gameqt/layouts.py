@@ -41,15 +41,22 @@ class QVBoxLayout:
         
         for item in visible_items:
             class_name = item.__class__.__name__
-            h = 30 if class_name in ('QPushButton', 'QLabel', 'QLineEdit') else (int(item_h * item.stretch) if class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0 else (10 if class_name == 'Spacer' else int(item_h)))
+            h = 30 if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox') else (int(item_h * item.stretch) if class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0 else (10 if class_name == 'Spacer' else int(item_h)))
             
             x = rect.x + margins[0]
             w = content_w
             
             align = getattr(item, '_layout_alignment', 0)
-            if align & Qt.AlignmentFlag.AlignRight and content_w > 100:
-                w = 100
+            # Horizontal alignment within the column
+            if align & Qt.AlignmentFlag.AlignRight:
+                w = min(content_w, 150) # Assuming some default max width for aligned items
                 x = rect.x + rect.width - margins[2] - w
+            elif align & Qt.AlignmentFlag.AlignHCenter:
+                w = min(content_w, 150)
+                x = rect.x + margins[0] + (content_w - w) // 2
+            elif align & Qt.AlignmentFlag.AlignLeft:
+                w = min(content_w, 150)
+                # x is already rect.x + margins[0]
             
             # Use computed absolute rect for this item
             item_rect = pygame.Rect(x, curr_y, w, h)
@@ -153,6 +160,61 @@ class QStackedLayout:
             w._rect = rect
             if hasattr(w, '_layout') and w._layout: w._layout.arrange(pygame.Rect(0, 0, rect.width, rect.height))
             elif hasattr(w, 'arrange'): w.arrange(rect)
+
+class QFormLayout:
+    def __init__(self, parent=None):
+        self.rows = [] # List of (label_widget, field_widget)
+        self._parent = parent
+        if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
+        self._margins = (10, 10, 10, 10)
+        self._spacing = 10
+        self._label_width = 100
+
+    def addRow(self, label, field):
+        if isinstance(label, str):
+            from .widgets import QLabel
+            label_widget = QLabel(label, self._parent)
+        else:
+            label_widget = label
+        
+        self.rows.append((label_widget, field))
+        if self._parent:
+            if label_widget: label_widget._set_parent(self._parent)
+            if field: field._set_parent(self._parent)
+
+    def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
+    def setSpacing(self, s): self._spacing = s
+
+    def arrange(self, rect):
+        if not self.rows: return
+        
+        margins = self._margins
+        spacing = self._spacing
+        label_w = self._label_width
+        
+        curr_y = rect.y + margins[1]
+        field_w = rect.width - margins[0] - margins[2] - label_w - spacing
+        
+        for label, field in self.rows:
+            h = 30 # Fixed row height for now
+            
+            # Label rect
+            if label:
+                label_rect = pygame.Rect(rect.x + margins[0], curr_y, label_w, h)
+                label._rect = label_rect
+                if label.isVisible():
+                    if hasattr(label, '_layout') and label._layout: label._layout.arrange(label_rect)
+                    elif hasattr(label, 'arrange'): label.arrange(label_rect)
+            
+            # Field rect
+            if field:
+                field_rect = pygame.Rect(rect.x + margins[0] + label_w + spacing, curr_y, field_w, h)
+                field._rect = field_rect
+                if field.isVisible():
+                    if hasattr(field, '_layout') and field._layout: field._layout.arrange(field_rect)
+                    elif hasattr(field, 'arrange'): field.arrange(field_rect)
+            
+            curr_y += h + spacing
 
 class QSplitter(QWidget):
     def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None):
