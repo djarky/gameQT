@@ -1,5 +1,5 @@
 import pygame
-from .core import Qt
+from .core import Qt, QSize
 from .widgets import QWidget
 
 class QVBoxLayout:
@@ -10,6 +10,9 @@ class QVBoxLayout:
         w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
+    def addItem(self, i): 
+        self.items.append(i)
+        if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
         spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
@@ -48,15 +51,25 @@ class QVBoxLayout:
             
             align = getattr(item, '_layout_alignment', 0)
             # Horizontal alignment within the column
-            if align & Qt.AlignmentFlag.AlignRight:
-                w = min(content_w, 150) # Assuming some default max width for aligned items
-                x = rect.x + rect.width - margins[2] - w
-            elif align & Qt.AlignmentFlag.AlignHCenter:
-                w = min(content_w, 150)
-                x = rect.x + margins[0] + (content_w - w) // 2
-            elif align & Qt.AlignmentFlag.AlignLeft:
-                w = min(content_w, 150)
-                # x is already rect.x + margins[0]
+            if align & (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft):
+                # Try to get a reasonable width for aligned items
+                w = 150 # Default
+                if hasattr(item, 'sizeHint'): 
+                    sh = item.sizeHint()
+                    if sh: w = sh.width()
+                elif hasattr(item, 'text'):
+                    # Heuristic for labels/buttons
+                    font = pygame.font.SysFont(None, 18)
+                    w = font.size(str(item.text))[0] + 20
+                
+                w = min(content_w, w)
+                
+                if align & Qt.AlignmentFlag.AlignRight:
+                    x = rect.x + rect.width - margins[2] - w
+                elif align & Qt.AlignmentFlag.AlignHCenter:
+                    x = rect.x + margins[0] + (content_w - w) // 2
+                else: # AlignLeft
+                    x = rect.x + margins[0]
             
             # Use computed absolute rect for this item
             item_rect = pygame.Rect(x, curr_y, w, h)
@@ -76,6 +89,9 @@ class QHBoxLayout:
         w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
     def addLayout(self, l): self.items.append(l); l._parent = self._parent
+    def addItem(self, i):
+        self.items.append(i)
+        if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
         spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
@@ -87,13 +103,47 @@ class QHBoxLayout:
         if not visible_items: return
         margins = getattr(self, '_margins', (0,0,0,0))
         spacing = getattr(self, '_spacing', 0)
-        content_w = rect.width - margins[0] - margins[2]
-        item_w = (content_w - (max(0, len(visible_items)-1))*spacing) / len(visible_items)
-        for i, item in enumerate(visible_items):
-            item_rect = pygame.Rect(rect.x + margins[0] + i*(item_w + spacing), rect.y + margins[1], item_w, rect.height - margins[1] - margins[3])
+        
+        # Sizing heuristic
+        fixed_w = 0
+        expandable_count = 0
+        for item in visible_items:
+            class_name = item.__class__.__name__
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'): 
+                 font = pygame.font.SysFont(None, 18)
+                 w = font.size(getattr(item, 'text', '') if hasattr(item, 'text') else '')[0] + 20
+                 fixed_w += w
+            elif class_name == 'Spacer':
+                if getattr(item, 'stretch', 0) == 0: fixed_w += 10
+                else: expandable_count += item.stretch
+            else: expandable_count += 1
+            
+        available_w = rect.width - margins[0] - margins[2]
+        remaining_w = max(0, available_w - fixed_w - (len(visible_items)-1)*spacing)
+        unit_w = remaining_w / expandable_count if expandable_count > 0 else 0
+        
+        curr_x = rect.x + margins[0]
+        content_h = rect.height - margins[1] - margins[3]
+        
+        for item in visible_items:
+            class_name = item.__class__.__name__
+            w = (int(unit_w) if expandable_count > 0 else (available_w // len(visible_items))) # fallback
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'):
+                font = pygame.font.SysFont(None, 18)
+                w = font.size(getattr(item, 'text', '') if hasattr(item, 'text') else '')[0] + 20
+            elif class_name == 'Spacer':
+                w = int(unit_w * item.stretch) if item.stretch > 0 else 10
+                
+            y = rect.y + margins[1]
+            h = content_h
+            
+            # Vertical alignment within the row (simple)
+            item_rect = pygame.Rect(curr_x, y, w, h)
             item._rect = item_rect
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(item_rect)
             elif hasattr(item, 'arrange'): item.arrange(item_rect)
+            
+            curr_x += w + spacing
 
 class QGridLayout:
     def __init__(self, parent=None):
@@ -106,6 +156,12 @@ class QGridLayout:
         w._layout_alignment = alignment
         self.items[(row, col)] = {'widget': w, 'rs': rowSpan, 'cs': colSpan}
         (w._set_parent(self._parent) if self._parent else None)
+    def addItem(self, i):
+        # Grid addItem is tricky without row/col. Assume next available? 
+        # For now just append to internal list for generic layout logic if needed
+        if not hasattr(self, '_generic_items'): self._generic_items = []
+        self._generic_items.append(i)
+        if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
     def arrange(self, rect):
@@ -237,3 +293,11 @@ class QSplitter(QWidget):
                     h = int(self._rect.height * p)
                     item._rect = pygame.Rect(0, curr, self._rect.width, h); curr += h
         super()._draw_recursive(offset)
+
+class QSpacerItem:
+    def __init__(self, w, h, hPolicy=None, vPolicy=None):
+        self._rect = pygame.Rect(0, 0, w, h)
+    def isVisible(self): return True
+    def _set_parent(self, p): pass
+    @property
+    def stretch(self): return 0
