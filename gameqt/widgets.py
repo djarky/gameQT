@@ -8,7 +8,8 @@ class QWidget(QObject):
     def __init__(self, parent=None):
         super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet = pygame.Rect(0, 0, 100, 100), False, None, ""
         self._parent, self._children = parent, []
-        if parent and hasattr(parent, '_children'): parent._children.append(self)
+        # QObject.__init__ (via super()) already handles parent enrollment if it's a QObject
+        # But we double check and initialize signals here if needed
         self.clicked = Signal(); self._accept_drops = False
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops
@@ -63,7 +64,9 @@ class QWidget(QObject):
         elif parent and QApplication._instance and self in QApplication._instance._windows:
             QApplication._instance._windows.remove(self)
         self._parent = parent
-        if parent and hasattr(parent, '_children'): parent._children.append(self)
+        if parent and hasattr(parent, '_children'):
+            if self not in parent._children:
+                parent._children.append(self)
     def _handle_event(self, event, offset):
         if not self.isVisible(): return False
         my_pos = offset + pygame.Vector2(self._rect.topleft)
@@ -103,8 +106,11 @@ class QWidget(QObject):
                 q_event.ignore() # Not accepted by default for bubbling
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if hasattr(self, 'mousePressEvent'): self.mousePressEvent(q_event)
+                    if hasattr(self, 'mousePressEvent'): 
+                        self.mousePressEvent(q_event)
+                        q_event.accept()
                     self.clicked.emit()
+                    q_event.accept() # Buttons should accept the event
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if hasattr(self, 'mouseReleaseEvent'): self.mouseReleaseEvent(q_event)
                 elif event.type == pygame.MOUSEMOTION:

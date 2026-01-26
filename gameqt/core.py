@@ -67,7 +67,9 @@ class QObject:
     def __init__(self, parent=None):
         self._parent, self._children = parent, []
         self._signals_blocked = False
-        (parent._children.append(self) if parent and hasattr(parent, '_children') else None)
+        if parent and hasattr(parent, '_children'):
+            if self not in parent._children:
+                parent._children.append(self)
     def parent(self): return self._parent
     def children(self): return self._children
     def blockSignals(self, b):
