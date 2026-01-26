@@ -7,7 +7,7 @@ import os
 import pygame
 
 # Add parent directory to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from gameqt.application import QApplication
 from gameqt.core import QClipboard, QMimeData, QUrl

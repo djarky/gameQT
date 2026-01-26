@@ -3,7 +3,7 @@ import os
 import pygame
 
 # Add parent directory to path so we can import gameqt
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from gameqt.application import QApplication
 from gameqt.widgets import QMainWindow, QWidget, QLabel, QPushButton, QTextEdit, QGroupBox, QToolBar

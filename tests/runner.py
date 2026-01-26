@@ -28,8 +28,15 @@ class TestRunner(QMainWindow):
         # Header
         header = QLabel(central)
         header.setText("GameQt Test Suite")
+        header.setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 5px;")
         header.show()
         main_layout.addWidget(header)
+
+        # Note about unit tests
+        note = QLabel(central)
+        note.setText("Note: [Unit] tests are purely logic/console based (may say 'OK' in console).\n[Demo] tests will open a GUI window.")
+        note.show()
+        main_layout.addWidget(note)
         
         # Populating tests and demos
         self.tests = self.discover_tests()
@@ -95,22 +102,43 @@ class TestRunner(QMainWindow):
         
         # Pass checkbox
         pass_chk = QCheckBox("Pass", card)
-        pass_chk.stateChanged.connect(lambda s: self.log_result(name, "PASS" if s == 2 else "RESET"))
         pass_chk.show()
         layout.addWidget(pass_chk)
         
         # Fail checkbox
         fail_chk = QCheckBox("Fail", card)
-        fail_chk.stateChanged.connect(lambda s: self.log_result(name, "FAIL" if s == 2 else "RESET"))
         fail_chk.show()
         layout.addWidget(fail_chk)
+
+        # Logic to make them mutually exclusive
+        def on_pass(s):
+            if s == 2: # Checked
+                fail_chk.blockSignals(True)
+                fail_chk.setChecked(False)
+                fail_chk.blockSignals(False)
+                self.log_result(name, "PASS")
+            else:
+                self.log_result(name, "RESET")
+
+        def on_fail(s):
+            if s == 2: # Checked
+                pass_chk.blockSignals(True)
+                pass_chk.setChecked(False)
+                pass_chk.blockSignals(False)
+                self.log_result(name, "FAIL")
+            else:
+                self.log_result(name, "RESET")
+
+        pass_chk.stateChanged.connect(on_pass)
+        fail_chk.stateChanged.connect(on_fail)
         
         card.show()
         return card
 
     def run_test(self, path):
         # Run in a separate process
-        print(f"Running {path}...")
+        print(f"\n--- Running {os.path.basename(path)} ---")
+        # Ensure we use the current interpreter
         subprocess.Popen([sys.executable, path])
 
     def log_result(self, name, result):
