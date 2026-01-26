@@ -2,6 +2,12 @@ import pygame
 from .core import Qt, QSize
 from .widgets import QWidget
 
+def _get_text(item):
+    if hasattr(item, 'text'):
+        t = item.text
+        return t() if callable(t) else str(t)
+    return str(getattr(item, '_text', ''))
+
 class QVBoxLayout:
     def __init__(self, parent=None):
         self.items, self._parent = [], parent
@@ -60,7 +66,7 @@ class QVBoxLayout:
                 elif hasattr(item, 'text'):
                     # Heuristic for labels/buttons
                     font = pygame.font.SysFont(None, 18)
-                    w = font.size(str(item.text))[0] + 20
+                    w = font.size(_get_text(item))[0] + 20
                 
                 w = min(content_w, w)
                 
@@ -111,7 +117,7 @@ class QHBoxLayout:
             class_name = item.__class__.__name__
             if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'): 
                  font = pygame.font.SysFont(None, 18)
-                 w = font.size(getattr(item, 'text', '') if hasattr(item, 'text') else '')[0] + 20
+                 w = font.size(_get_text(item))[0] + 20
                  fixed_w += w
             elif class_name == 'Spacer':
                 if getattr(item, 'stretch', 0) == 0: fixed_w += 10
@@ -130,7 +136,7 @@ class QHBoxLayout:
             w = (int(unit_w) if expandable_count > 0 else (available_w // len(visible_items))) # fallback
             if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'):
                 font = pygame.font.SysFont(None, 18)
-                w = font.size(getattr(item, 'text', '') if hasattr(item, 'text') else '')[0] + 20
+                w = font.size(_get_text(item))[0] + 20
             elif class_name == 'Spacer':
                 w = int(unit_w * item.stretch) if item.stretch > 0 else 10
                 

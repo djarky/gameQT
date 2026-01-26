@@ -440,6 +440,7 @@ class QLabel(QWidget):
 class QPushButton(QWidget):
     def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
     def setText(self, text): self._text = text
+    def text(self): return self._text
     def _draw(self, pos):
         if not QApplication._instance or not QApplication._instance._windows: return
         screen = QApplication._instance._windows[0]._screen
@@ -501,6 +502,7 @@ class QCheckBox(QWidget):
         self._checked = False
         self.stateChanged = Signal(int)
         self._rect.height = 25
+    def text(self): return self._text
     def setChecked(self, b): self._checked = b; self.stateChanged.emit(Qt.CheckState.Checked if b else Qt.CheckState.Unchecked)
     def isChecked(self): return self._checked
     def _draw(self, pos):
@@ -526,6 +528,7 @@ class QRadioButton(QWidget):
         self._checked = False
         self.toggled = Signal(bool)
         self._rect.height = 25
+    def text(self): return self._text
     def setChecked(self, b):
         if self._checked == b: return
         self._checked = b
