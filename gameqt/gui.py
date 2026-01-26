@@ -14,6 +14,10 @@ class QColor:
         elif len(args) >= 3: self.r, self.g, self.b = args[:3]; self.a = args[3] if len(args) > 3 else 255
         else: self.r = self.g = self.b = 0; self.a = 255
     def to_pygame(self): return (self.r, self.g, self.b, self.a)
+    def red(self): return self.r
+    def green(self): return self.g
+    def blue(self): return self.b
+    def alpha(self): return self.a
 
 class QFont:
     def __init__(self, family="Arial", size=12): self._family, self._size = family, size

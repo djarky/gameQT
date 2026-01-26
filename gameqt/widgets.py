@@ -464,9 +464,12 @@ class QLineEdit(QWidget):
         super().__init__(parent)
         self._text = contents
         self._focused = False
+        self._read_only = False
         self.returnPressed = Signal()
         self.textChanged = Signal(str)
         self._rect.height = 30 # Default height
+    def setReadOnly(self, b): self._read_only = b
+    def isReadOnly(self): return self._read_only
     def setText(self, text): self._text = text; self.textChanged.emit(text)
     def text(self): return self._text
     def _draw(self, pos):
@@ -491,7 +494,7 @@ class QLineEdit(QWidget):
             mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
             if not mouse_rect.collidepoint(pygame.mouse.get_pos()):
                 self._focused = False
-        if self._focused and event.type == pygame.KEYDOWN:
+        if self._focused and event.type == pygame.KEYDOWN and not self._read_only:
             if event.key == pygame.K_BACKSPACE:
                 self._text = self._text[:-1]
                 self.textChanged.emit(self._text)
@@ -500,6 +503,9 @@ class QLineEdit(QWidget):
             elif event.unicode and event.unicode.isprintable():
                 self._text += event.unicode
                 self.textChanged.emit(self._text)
+        elif self._focused and event.type == pygame.KEYDOWN and self._read_only:
+            if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.returnPressed.emit()
 
 class QCheckBox(QWidget):
     def __init__(self, text="", parent=None):

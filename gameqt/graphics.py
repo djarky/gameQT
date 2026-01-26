@@ -92,6 +92,28 @@ class QGraphicsRectItem(QGraphicsItem):
         painter.drawRect(self._rect)
         painter.restore()
 
+class QGraphicsEllipseItem(QGraphicsItem):
+    def __init__(self, *args):
+        if len(args) > 0 and isinstance(args[0], QGraphicsItem): super().__init__(args[0]); args = args[1:]
+        else: super().__init__()
+        self._rect = QRectF(*args) if len(args) in (1, 4) else QRectF(0,0,0,0)
+        self._pen = QPen(QColor(0,0,0))
+        self._brush = QBrush()
+
+    def setPen(self, pen): self._pen = pen
+    def setBrush(self, brush): self._brush = brush
+    def setRect(self, *args): self._rect = QRectF(*args)
+
+    def rect(self): return self._rect
+    def boundingRect(self): return self._rect
+    def paint(self, painter, option, widget):
+        painter.save()
+        painter.translate(self._pos.x(), self._pos.y())
+        painter.setPen(self._pen)
+        painter.setBrush(self._brush)
+        painter.drawEllipse(self._rect)
+        painter.restore()
+
 class QGraphicsPixmapItem(QGraphicsItem):
     class ShapeMode: BoundingRectShape = 1
     def __init__(self, pixmap=None, parent=None): super().__init__(parent); self._pixmap = pixmap
