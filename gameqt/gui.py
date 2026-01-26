@@ -25,8 +25,10 @@ class QFont:
     def pointSize(self): return self._size
 
 class QPixmap:
-    def __init__(self, arg=None):
-        if isinstance(arg, str): 
+    def __init__(self, arg=None, h=None):
+        if h is not None:
+             self.surface = pygame.Surface((arg, h), pygame.SRCALPHA)
+        elif isinstance(arg, str): 
             try: self.surface = pygame.image.load(arg).convert_alpha()
             except: self.surface = None
         elif isinstance(arg, pygame.Surface): self.surface = arg

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
-from qt_compat import QApplication, QGraphicsPixmapItem, QPixmap
+import sys, os; sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))); from gameqt.application import QApplication; from gameqt.graphics import QGraphicsPixmapItem; from gameqt.gui import QPixmap
 
 # Mock QApplication to avoid GUI issues in headless environment
 if not QApplication.instance():

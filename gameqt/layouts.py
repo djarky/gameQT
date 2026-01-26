@@ -21,7 +21,7 @@ class QVBoxLayout:
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
-        spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s})()
         self.items.append(spacer)
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
@@ -100,7 +100,7 @@ class QHBoxLayout:
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
-        spacer = type('Spacer', (), {'isVisible': lambda: True, 'stretch': s})()
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s})()
         self.items.append(spacer)
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
