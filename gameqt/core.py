@@ -2,7 +2,13 @@ import pygame
 
 class Qt:
     class Orientation: Horizontal = 1; Vertical = 2
-    class WindowType: Widget = 0; Window = 1; Dialog = 2; Sheet = 3; Drawer = 4; Popup = 5; Tool = 6; ToolTip = 7; SplashScreen = 8
+    class WindowType: 
+        Widget = 0; Window = 1; Dialog = 2; Sheet = 3; Drawer = 4; Popup = 5; Tool = 6; ToolTip = 7; SplashScreen = 8
+        WindowStaysOnTopHint = 0x00040000
+        WindowTitleHint = 0x00001000
+        WindowSystemMenuHint = 0x00002000
+        WindowMinimizeButtonHint = 0x00004000
+        WindowMaximizeButtonHint = 0x00008000
     class AlignmentFlag: 
         AlignLeft = 0x0001
         AlignRight = 0x0002
