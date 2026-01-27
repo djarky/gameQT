@@ -15,7 +15,13 @@ class QVBoxLayout:
     def addWidget(self, w, alignment=0):
         w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
-    def addLayout(self, l): self.items.append(l); l._parent = self._parent
+    def _set_parent(self, p):
+        self._parent = p
+        for item in self.items:
+            if hasattr(item, '_set_parent'): item._set_parent(p)
+    def addLayout(self, l):
+        self.items.append(l); l._parent = self._parent
+        if self._parent and hasattr(l, '_set_parent'): l._set_parent(self._parent)
     def addItem(self, i): 
         self.items.append(i)
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
@@ -94,7 +100,13 @@ class QHBoxLayout:
     def addWidget(self, w, alignment=0):
         w._layout_alignment = alignment
         self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
-    def addLayout(self, l): self.items.append(l); l._parent = self._parent
+    def _set_parent(self, p):
+        self._parent = p
+        for item in self.items:
+            if hasattr(item, '_set_parent'): item._set_parent(p)
+    def addLayout(self, l):
+        self.items.append(l); l._parent = self._parent
+        if self._parent and hasattr(l, '_set_parent'): l._set_parent(self._parent)
     def addItem(self, i):
         self.items.append(i)
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
@@ -162,7 +174,12 @@ class QGridLayout:
     def addWidget(self, w, row, col, rowSpan=1, colSpan=1, alignment=0):
         w._layout_alignment = alignment
         self.items[(row, col)] = {'widget': w, 'rs': rowSpan, 'cs': colSpan}
-        (w._set_parent(self._parent) if self._parent else None)
+        if self._parent: w._set_parent(self._parent)
+    def _set_parent(self, p):
+        self._parent = p
+        for info in self.items.values():
+            w = info['widget']
+            if hasattr(w, '_set_parent'): w._set_parent(p)
     def addItem(self, i):
         # Grid addItem is tricky without row/col. Assume next available? 
         # For now just append to internal list for generic layout logic if needed
@@ -208,9 +225,13 @@ class QStackedLayout:
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
     def addWidget(self, w):
         self.items.append(w)
-        (w._set_parent(self._parent) if self._parent else None)
+        if self._parent: w._set_parent(self._parent)
         w.hide()
         if self._current_index == -1: self.setCurrentIndex(0)
+    def _set_parent(self, p):
+        self._parent = p
+        for item in self.items:
+            if hasattr(item, '_set_parent'): item._set_parent(p)
     def setCurrentIndex(self, index):
         if 0 <= index < len(self.items):
             if 0 <= self._current_index < len(self.items):
@@ -244,6 +265,11 @@ class QFormLayout:
         if self._parent:
             if label_widget: label_widget._set_parent(self._parent)
             if field: field._set_parent(self._parent)
+    def _set_parent(self, p):
+        self._parent = p
+        for label, field in self.rows:
+            if label and hasattr(label, '_set_parent'): label._set_parent(p)
+            if field and hasattr(field, '_set_parent'): field._set_parent(p)
 
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
