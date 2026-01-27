@@ -26,11 +26,12 @@ class QWidget(QObject):
     def resize(self, w, h): 
         self._rect.width, self._rect.height = w, h
         if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
+    def setGeometry(self, x, y, w, h):
+        self._rect = pygame.Rect(x, y, w, h)
+        if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
+    def move(self, x, y): self._rect.x, self._rect.y = x, y
     def setMinimumSize(self, w, h): self._min_size = (w, h)
-    def setCursor(self, cursor): 
-        # cursor is often a Qt.CursorShape
-        try: pygame.mouse.set_cursor(cursor)
-        except: pass
+    def setCursor(self, cursor): self._cursor = cursor
     def viewport(self): return self # Fallback
     def window(self):
         curr = self
@@ -138,6 +139,9 @@ class QWidget(QObject):
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if hasattr(self, 'mouseReleaseEvent'): self.mouseReleaseEvent(q_event)
                 elif event.type == pygame.MOUSEMOTION:
+                    if hasattr(self, '_cursor'): 
+                         try: pygame.mouse.set_cursor(self._cursor)
+                         except: pass
                     if hasattr(self, 'mouseMoveEvent'): self.mouseMoveEvent(q_event)
                 
                 return q_event.isAccepted()

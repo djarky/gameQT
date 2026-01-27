@@ -115,7 +115,10 @@ class QDrag:
     def setMimeData(self, data):
         self._mime_data = data
     def exec(self, *args): 
-        print(f"[QDrag] Executing drag operation")
+        from .application import QApplication
+        app = QApplication.instance()
+        if app:
+            return app.startDrag(self)
         return 0
 
 from .widgets import QWidget

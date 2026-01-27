@@ -13,12 +13,28 @@ class QStatusBar(QWidget):
         self._message_label.setText(text)
         # Timeout not implemented in this simple version
         
+    def addPermanentWidget(self, widget):
+        widget._set_parent(self)
+        widget.show()
+        self._layout_widgets()
+        
     def addWidget(self, widget):
         widget._set_parent(self)
         widget.show()
-        # Simple layout: append to the right
-        x = sum(c._rect.width + 5 for c in self._children if c != self._message_label)
-        widget._rect.x = x + 210 # Offset by message label
+        self._layout_widgets()
+
+    def _layout_widgets(self):
+        # Re-calculate positions
+        # Message label on left
+        self._message_label._rect = pygame.Rect(5, 5, 200, 15)
+        
+        # Other widgets to the right
+        # This is a simplification; normally permanent widgets are on far right
+        current_x = 220
+        for child in self._children:
+            if child == self._message_label: continue
+            child._rect.x = current_x
+            current_x += child._rect.width + 5
         
     def _draw(self, pos):
         from ..application import QApplication

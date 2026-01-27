@@ -30,6 +30,9 @@ class QAbstractItemView(QWidget):
 
 class QHeaderView:
     class ResizeMode: Stretch = 1; ResizeToContents = 2; Fixed = 3; Interactive = 0
+    def __init__(self, parent=None):
+        self._resize_modes = {}
+        self._default_resize_mode = 0
     def setSectionResizeMode(self, *args):
         if not hasattr(self, '_resize_modes'): self._resize_modes = {}
         if len(args) == 2: self._resize_modes[args[0]] = args[1]
@@ -61,9 +64,9 @@ class QTreeWidget(QAbstractItemView):
         self._root._item_view = self
         self.itemChanged, self.itemSelectionChanged, self.customContextMenuRequested = Signal(object, int), Signal(), Signal(object)
     def addChild(self, item): self._root.addChild(item)
-    def addTopLevelItem(self, item): self.addChild(item)
+    def addTopLevelItem(self, item): self._root.addChild(item)
     def topLevelItemCount(self): return self._root.childCount()
-    def clear(self): self._items = []
+    def clear(self): self._root = QTreeWidgetItem(None); self._root._item_view = self
     def clearSelection(self):
         def unselect(item):
             item._selected = False
@@ -86,10 +89,10 @@ class QTreeWidget(QAbstractItemView):
     def setAcceptDrops(self, b): 
         self._accept_drops = b
     def indexOfTopLevelItem(self, item):
-        return self._items.index(item) if item in self._items else -1
+        return self._root.indexOfChild(item)
     def takeTopLevelItem(self, index):
-        return self._items.pop(index) if 0 <= index < len(self._items) else None
-    def topLevelItem(self, i): return self._items[i] if i < len(self._items) else None
+        return self._root.takeChild(index)
+    def topLevelItem(self, i): return self._root.child(i) if i < self._root.childCount() else None
     def selectedItems(self):
         # Recursive search for selected items
         items = []
@@ -114,7 +117,46 @@ class QTreeWidget(QAbstractItemView):
         for i in range(self._root.childCount()): collapse(self._root.child(i))
 
     def scrollToItem(self, item, hint=None):
-        pass # Not implemented in pygame fallback
+        # Calculate Y position of the item
+        y = 0
+        found = False
+        
+        def traverse(curr, target):
+            nonlocal y, found
+            if found: return
+            if curr == target: 
+                found = True
+                return
+            
+            y += 22 # item_h
+            if curr.isExpanded():
+                for i in range(curr.childCount()):
+                    traverse(curr.child(i), target)
+                    if found: return
+
+        # Start traversal from root children
+        for i in range(self.topLevelItemCount()):
+            traverse(self.topLevelItem(i), item)
+            if found: break
+            
+        if found:
+            # Adjust _scroll_y
+            header_h = 25
+            visible_h = self._rect.height - header_h
+            
+            # Simple logic: ensure item top is visible
+            current_scroll = getattr(self, '_scroll_y', 0)
+            item_top = y
+            item_bottom = y + 22
+            
+            if item_top < current_scroll:
+                self._scroll_y = item_top
+            elif item_bottom > current_scroll + visible_h:
+                self._scroll_y = item_bottom - visible_h
+            
+            # Ensure non-negative? 
+            # if self._scroll_y < 0: self._scroll_y = 0
+
 
     def _draw(self, pos):
         super()._draw(pos)

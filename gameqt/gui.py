@@ -338,9 +338,23 @@ class QTextCursor:
         if mode == 0: self._anchor = pos
     def anchor(self): return self._anchor
     def select(self, selection_type):
-        # Simplistic selection logic
-        pass
-    def clearSelection(self):
-        self._anchor = self._pos
-    def hasSelection(self): return self._pos != self._anchor
-    def selectedText(self): return "" # Requires document access, which is not here yet
+        if selection_type == QTextCursor.SelectionType.Document:
+            self._anchor = 0
+            # We don't know the end, so we can't fully implement without doc reference. 
+            # But this is a data object, usually created by a document/edit.
+            # We'll just assume a large number if no doc? Or just set to 0?
+            pass 
+        elif selection_type == QTextCursor.SelectionType.WordUnderCursor:
+             # Placeholder logic for selecting word
+             self._anchor = max(0, self._pos - 5)
+             self._pos = self._pos + 5
+             
+    def selectionStart(self): return min(self._pos, self._anchor)
+    def selectionEnd(self): return max(self._pos, self._anchor)
+    
+    def selectedText(self): 
+        # Needs reference to text. 
+        # If this cursor is attached to a document, we could get it.
+        if hasattr(self, '_document') and self._document:
+             return self._document.toPlainText()[self.selectionStart():self.selectionEnd()]
+        return ""

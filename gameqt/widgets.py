@@ -20,6 +20,9 @@ class QWidget(QObject):
         from .widgets import QMainWindow
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
     def resize(self, w, h): self._rect.width, self._rect.height = w, h
+    def move(self, x, y): self._rect.x, self._rect.y = x, y
+    def setGeometry(self, x, y, w, h):
+        self._rect = pygame.Rect(x, y, w, h)
     def setMinimumSize(self, w, h): pass
     def setCursor(self, cursor): self._cursor = cursor
     def viewport(self): return self # Fallback

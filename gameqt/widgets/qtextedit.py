@@ -8,7 +8,22 @@ class QTextEdit(QWidget):
         self._html = ""; self._plain_text = ""; self._lines = []; self._focused = False; self._read_only = False
         self._scroll_y = 0
         self.textChanged = Signal()
-    def setPlainText(self, t): self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit()
+        
+        # Cursor support
+        self._cursor_pos = 0
+        class QDoc:
+            def __init__(self, text_getter): self._getter = text_getter
+            def toPlainText(self): return self._getter()
+        self._document = QDoc(self.toPlainText)
+
+    def textCursor(self):
+        from ..gui import QTextCursor
+        cursor = QTextCursor()
+        cursor._document = self._document
+        cursor._pos = self._cursor_pos
+        return cursor
+
+    def setPlainText(self, t): self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit(); self._cursor_pos = len(t)
     def toPlainText(self): return self._plain_text
     def setText(self, t): self.setPlainText(t)
     def setHtml(self, h): 
