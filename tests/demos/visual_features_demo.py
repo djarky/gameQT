@@ -11,7 +11,7 @@ from gameqt.application import QApplication
 from gameqt.widgets import (QMainWindow, QWidget, QLabel, QLineEdit, 
                              QPushButton)
 from gameqt.layouts import QVBoxLayout, QHBoxLayout
-from gameqt.item_views import QTreeWidget, QTreeWidgetItem
+from gameqt.item_views import QTreeWidget, QTreeWidgetItem, QHeaderView
 
 class VisualFeaturesDemo(QMainWindow):
     def __init__(self):
