@@ -31,13 +31,14 @@ class QAbstractItemView(QWidget):
 class QHeaderView:
     class ResizeMode: Stretch = 1; ResizeToContents = 2; Fixed = 3; Interactive = 0
     def setSectionResizeMode(self, *args):
-        if not hasattr(self, '_resize_modes'):
-            self._resize_modes = {}
-        if len(args) == 2:
-            c, m = args
-            self._resize_modes[c] = m
-        elif len(args) == 1:
-            self._default_resize_mode = args[0]
+        if not hasattr(self, '_resize_modes'): self._resize_modes = {}
+        if len(args) == 2: self._resize_modes[args[0]] = args[1]
+        elif len(args) == 1: self._default_resize_mode = args[0]
+    def sectionSize(self, index, total_w, count):
+        mode = self._resize_modes.get(index, getattr(self, '_default_resize_mode', 0))
+        if mode == 1: # Stretch
+            return total_w // count
+        return total_w // count # Default fallback
 
 class QStyleOptionViewItem:
     def __init__(self):
@@ -127,8 +128,8 @@ class QTreeWidget(QAbstractItemView):
         
         # Header text
         labels = getattr(self, '_header_labels', ["Element", "Type", "Vis", "Opacity"])
-        col_w = self._rect.width // len(labels)
         for i, lbl in enumerate(labels):
+            col_w = self._header.sectionSize(i, self._rect.width, len(labels))
             txt = font.render(lbl, True, (60, 60, 70))
             screen.blit(txt, (pos.x + i * col_w + 5, pos.y + (header_h - txt.get_height()) // 2))
             if i > 0:
@@ -159,6 +160,7 @@ class QTreeWidget(QAbstractItemView):
             
             # Other columns
             for c in range(1, len(labels)):
+                col_w = self._header.sectionSize(c, self._rect.width, len(labels))
                 val = item.text(c)
                 if not val: continue
                 txt = font.render(str(val), True, text_color)

@@ -15,7 +15,7 @@ class QScrollArea(QWidget):
     def setWidgetResizable(self, b): 
         self._widget_resizable = b
         
-    def setFrameShape(self, shape): pass
+    def setFrameShape(self, shape): self._frame_shape = shape
     
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return

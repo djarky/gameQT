@@ -13,8 +13,12 @@ class QWidget(QObject):
         self.clicked = Signal(); self._accept_drops = False
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops
-    def dragEnterEvent(self, event): pass
-    def dropEvent(self, event): pass
+    def dragEnterEvent(self, event): 
+        # Default implementation: accept nothing
+        pass
+    def dropEvent(self, event): 
+        # Default implementation: do nothing
+        pass
     def setWindowTitle(self, title):
         self._window_title = title
         from .qmainwindow import QMainWindow

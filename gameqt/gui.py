@@ -288,10 +288,26 @@ class QKeySequence:
         return key == self._keys[0] and (mods & self._modifiers) == self._modifiers
 
     @staticmethod
-    def matches_static(k1, k2): return False
+    def matches_static(k1, k2): 
+        # k1 and k2 are likely QKeySequence or strings
+        s1 = k1._key_str if hasattr(k1, '_key_str') else str(k1)
+        s2 = k2._key_str if hasattr(k2, '_key_str') else str(k2)
+        return s1.upper() == s2.upper()
 
 class QTextCursor:
-    class SelectionType: Document = 1
-    def __init__(self): pass
-    def select(self, selection_type): pass
-    def clearSelection(self): pass
+    class SelectionType: Document = 1; BlockUnderCursor = 2; LineUnderCursor = 3; WordUnderCursor = 4
+    def __init__(self):
+        self._pos = 0
+        self._anchor = 0
+    def position(self): return self._pos
+    def setPosition(self, pos, mode=0): # mode 1 is KeepAnchor
+        self._pos = pos
+        if mode == 0: self._anchor = pos
+    def anchor(self): return self._anchor
+    def select(self, selection_type):
+        # Simplistic selection logic
+        pass
+    def clearSelection(self):
+        self._anchor = self._pos
+    def hasSelection(self): return self._pos != self._anchor
+    def selectedText(self): return "" # Requires document access, which is not here yet

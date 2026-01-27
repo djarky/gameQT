@@ -20,7 +20,7 @@ class QLabel(QWidget):
     def setTextFormat(self, fmt): 
         self._text_format = fmt
         self._calculate_natural_size()
-    def setOpenExternalLinks(self, open): pass
+    def setOpenExternalLinks(self, open): self._open_external_links = open
     def _calculate_natural_size(self):
         text = self._text
         self._img_surf = None

@@ -65,7 +65,9 @@ class QGraphicsItem:
     def mapFromScene(self, *args): return QPointF(*args) - self._pos
     def sceneBoundingRect(self):
         br = self.boundingRect(); return QRectF(self._pos.x() + br.x(), self._pos.y() + br.y(), br.width(), br.height())
-    def setCursor(self, cursor): pass
+    def setCursor(self, cursor): 
+        self._cursor = cursor
+        # If hovering, we should apply it, but for now we store it
     def setData(self, key, value):
         if not hasattr(self, '_data'): self._data = {}
         self._data[key] = value
@@ -73,9 +75,15 @@ class QGraphicsItem:
         return getattr(self, '_data', {}).get(key)
     def setFocus(self): 
         if self._scene: self._scene._focus_item = self
-    def paint(self, painter, option, widget): pass
-    def mousePressEvent(self, event): pass
-    def keyPressEvent(self, event): pass
+    def paint(self, painter, option, widget): 
+        # Virtual method to be overridden
+        pass
+    def mousePressEvent(self, event): 
+        # Default implementation: accept if selectable
+        pass
+    def keyPressEvent(self, event): 
+        # Default implementation: process key
+        pass
 
 class QGraphicsRectItem(QGraphicsItem):
     def __init__(self, *args):
@@ -144,8 +152,12 @@ class QGraphicsTextItem(QGraphicsItem):
         self._text_interaction_flags = 0
     def setTextInteractionFlags(self, flags): self._text_interaction_flags = flags
     def textInteractionFlags(self): return self._text_interaction_flags
-    def textCursor(self): return QTextCursor()
-    def setTextCursor(self, cursor): pass
+    def textCursor(self): 
+        if not hasattr(self, '_cursor_obj'):
+            from .gui import QTextCursor
+            self._cursor_obj = QTextCursor()
+        return self._cursor_obj
+    def setTextCursor(self, cursor): self._cursor_obj = cursor
     def toPlainText(self): return self._text
     def setDefaultTextColor(self, c): self._color = c
     def defaultTextColor(self): return self._color

@@ -99,7 +99,7 @@ class QDialog(QWidget):
         self._running = False
         self.close()
         
-    def setWindowFlags(self, flags): pass
+    def setWindowFlags(self, flags): self._window_flags = flags
     def setMinimumSize(self, w, h): 
         self._rect.width = max(self._rect.width, w)
         self._rect.height = max(self._rect.height, h)

@@ -327,7 +327,9 @@ class PyGameModalDialog:
         txt = font.render(self.title, True, (50, 50, 60))
         screen.blit(txt, (self.rect.x + 10, self.rect.y + 5))
 
-    def handle_event(self, event): pass
+    def handle_event(self, event): 
+        # Hook for custom event processing in dialogs
+        self.event_processed = True
     def handle_key(self, event): 
         if event.key == pygame.K_ESCAPE: self.running = False
 
