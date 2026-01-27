@@ -28,6 +28,9 @@ class QApplication:
         self._windows = []
         self._shortcuts = []
         self._running = False
+        try:
+            if not pygame.scrap.get_init(): pygame.scrap.init()
+        except: pass
 
     @staticmethod
     def clipboard(): return QApplication._clipboard

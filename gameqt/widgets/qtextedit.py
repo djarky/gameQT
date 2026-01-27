@@ -128,14 +128,18 @@ class QTextEdit(QWidget):
                 if self._plain_text:
                     self._plain_text = self._plain_text[:-1]
                     self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+                    self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self._plain_text += '\n'; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+                self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
             elif event.key == pygame.K_v and (pygame.key.get_mods() & pygame.KMOD_CTRL):
                 # Paste from clipboard if possible
                 try:
                     pasted = pygame.scrap.get(pygame.SCRAP_TEXT).decode('utf-8').replace('\0', '')
                     self._plain_text += pasted; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+                    self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
                 except: pass
             elif event.unicode and event.unicode.isprintable():
                 self._plain_text += event.unicode; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+                self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
         return False

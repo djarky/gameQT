@@ -81,8 +81,8 @@ class QVBoxLayout:
             item_rect = pygame.Rect(x, curr_y, w, h)
             item._rect = item_rect
             
-            # Pass this rect to nested layouts so they know where to start
-            if hasattr(item, '_layout') and item._layout: item._layout.arrange(item_rect)
+            # Pass relative rect to nested layouts
+            if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
             elif hasattr(item, 'arrange'): item.arrange(item_rect)
             
             curr_y += h + spacing
@@ -146,7 +146,8 @@ class QHBoxLayout:
             # Vertical alignment within the row (simple)
             item_rect = pygame.Rect(curr_x, y, w, h)
             item._rect = item_rect
-            if hasattr(item, '_layout') and item._layout: item._layout.arrange(item_rect)
+            # Pass relative rect to nested layouts
+            if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
             elif hasattr(item, 'arrange'): item.arrange(item_rect)
             
             curr_x += w + spacing
@@ -265,7 +266,7 @@ class QFormLayout:
                 label_rect = pygame.Rect(rect.x + margins[0], curr_y, label_w, h)
                 label._rect = label_rect
                 if label.isVisible():
-                    if hasattr(label, '_layout') and label._layout: label._layout.arrange(label_rect)
+                    if hasattr(label, '_layout') and label._layout: label._layout.arrange(pygame.Rect(0, 0, label_rect.width, label_rect.height))
                     elif hasattr(label, 'arrange'): label.arrange(label_rect)
             
             # Field rect
@@ -273,7 +274,7 @@ class QFormLayout:
                 field_rect = pygame.Rect(rect.x + margins[0] + label_w + spacing, curr_y, field_w, h)
                 field._rect = field_rect
                 if field.isVisible():
-                    if hasattr(field, '_layout') and field._layout: field._layout.arrange(field_rect)
+                    if hasattr(field, '_layout') and field._layout: field._layout.arrange(pygame.Rect(0, 0, field_rect.width, field_rect.height))
                     elif hasattr(field, 'arrange'): field.arrange(field_rect)
             
             curr_y += h + spacing

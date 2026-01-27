@@ -53,6 +53,11 @@ class QLineEdit(QWidget):
                 self.textChanged.emit(self._text)
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.returnPressed.emit()
+            elif event.key == pygame.K_v and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+                try:
+                    pasted = pygame.scrap.get(pygame.SCRAP_TEXT).decode('utf-8').replace('\0', '')
+                    self._text += pasted; self.textChanged.emit(self._text)
+                except: pass
             elif event.unicode and event.unicode.isprintable():
                 self._text += event.unicode
                 self.textChanged.emit(self._text)
