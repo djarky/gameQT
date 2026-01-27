@@ -210,9 +210,19 @@ class QPainter:
                 color = self._pen._color.to_pygame()
                 surface = font.render(str(text), True, color)
                 r = rect.toRect() if hasattr(rect, 'toRect') else rect
-                # Apply transform to top-left of rect? Or just translate?
-                # Usually drawText in rect handles alignment. For now simple:
-                p = self._transform.map(QPointF(r.x, r.y))
+                
+                # Alignment logic
+                tx, ty = r.x(), r.y()
+                tw, th = surface.get_size()
+                rw, rh = r.width(), r.height()
+                
+                if flags & Qt.AlignmentFlag.AlignRight: tx = r.x() + rw - tw
+                elif flags & Qt.AlignmentFlag.AlignHCenter: tx = r.x() + (rw - tw) // 2
+                
+                if flags & Qt.AlignmentFlag.AlignBottom: ty = r.y() + rh - th
+                elif flags & Qt.AlignmentFlag.AlignVCenter: ty = r.y() + (rh - th) // 2
+                
+                p = self._transform.map(QPointF(tx, ty))
                 self._device.blit(surface, (p.x(), p.y()))
         elif len(args) == 2:
             # drawText(point, text)

@@ -25,10 +25,13 @@ class QGraphicsScene(QObject):
         pos = event.pos(); clicked_item = None
         for item in reversed(self.items()):
             if item.isVisible() and item.sceneBoundingRect().contains(pos): clicked_item = item; break
+        
         if clicked_item:
             if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier): self.clearSelection()
-            clicked_item.setSelected(True)
-        else: self.clearSelection()
+            # Defer to item for selection/focus logic
+            clicked_item.mousePressEvent(event)
+        else:
+            self.clearSelection()
 
 class QGraphicsItem:
     class GraphicsItemFlag: ItemIsMovable = 1; ItemIsSelectable = 2; ItemIsFocusable = 4
@@ -87,11 +90,16 @@ class QGraphicsItem:
         # Virtual method to be overridden
         pass
     def mousePressEvent(self, event): 
-        # Default implementation: accept if selectable
-        pass
+        if self._flags & QGraphicsItem.GraphicsItemFlag.ItemIsSelectable:
+            self.setSelected(True)
+            event.accept()
+        if self._flags & QGraphicsItem.GraphicsItemFlag.ItemIsFocusable:
+            self.setFocus()
+            event.accept()
+
     def keyPressEvent(self, event): 
-        # Default implementation: process key
-        pass
+        # Default implementation: ignore, let bubble
+        event.ignore()
 
 class QGraphicsRectItem(QGraphicsItem):
     def __init__(self, *args):
@@ -253,6 +261,15 @@ class QGraphicsView(QWidget):
         if self._scene: self._scene.mousePressEvent(ev)
 
     def mouseMoveEvent(self, ev):
+        # Cursor logic
+        if self._scene:
+            p = self.mapToScene(ev.pos())
+            item = next((i for i in reversed(self._scene.items()) if i.isVisible() and i.sceneBoundingRect().contains(p)), None)
+            if item and hasattr(item, '_cursor'):
+                pygame.mouse.set_cursor(item._cursor)
+            else:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
         handled = False
         if self._rubber_band_rect:
             x1, y1 = self._rubber_band_start.x(), self._rubber_band_start.y()

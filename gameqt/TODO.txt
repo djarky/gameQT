@@ -1,4 +1,5 @@
-LISTA DE PENDIENTES - LIBRERÍA GAMEQT
+LISTA DE PENDIENTES - LIBRERÍA GAMEQT (Actualizada)
+----------------------------------------------
 
 1. GRÁFICOS Y RENDERIZADO (QPainter & GraphicsView)
 --------------------------------------------------
@@ -7,6 +8,9 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Implementar QTransform real (rotación, escalado, inclinación).
 [x] Añadir zoom y desplazamiento (pan) en QGraphicsView.
 [x] Implementar selección por arrastre (rubber-band selection) en la escena.
+[/] Mejorar QPainter.drawText para soportar alineaciones complejas y flags de Qt.
+[ ] Implementar lógica de cursores reales en QGraphicsItem y QGraphicsView (actualmente stubs).
+[ ] Implementar métodos virtuales paint(), mousePressEvent() y keyPressEvent() en clases base con comportamiento por defecto útil.
 
 2. WIDGETS DE USUARIO (Faltantes y Mejoras)
 -------------------------------------------
@@ -20,6 +24,11 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Implementar QGroupBox y QToolBar.
 [x] Añadir soporte de CSS básico para QWidget.setStyleSheet.
 [x] Mejorar el parser de HTML (soporte para b, i, color, p, br y tablas básicas).
+[/] Implementar QTextCursor por completo (select, selectedText y navegación por documento).
+[ ] Implementar QTreeWidget.scrollToItem (actualmente stub).
+[ ] Implementar QStatusBar real (actualmente MockStatusBar).
+[ ] Soporte para Drag & Drop interno (dragEnterEvent/dropEvent en QWidget son stubs).
+[ ] Implementar setCursor, setWindowFlags, setMinimumSize y setFrameShape funcionales.
 
 3. LAYOUTS Y ORGANIZACIÓN
 -------------------------
@@ -27,6 +36,8 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Implementar QFormLayout (parejas etiqueta-campo).
 [x] Implementar QStackedWidget y QStackedLayout (múltiples capas).
 [x] Refinar la lógica de alineación (AlignmentFlags) en todos los layouts.
+[/] Mejorar QGridLayout.addItem para manejar la inserción automática de celdas.
+[/] Mejorar QFormLayout para soportar alturas de fila dinámicas y márgenes por campo.
 
 4. SISTEMA, EVENTOS Y DATOS
 ---------------------------
@@ -36,6 +47,7 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Atajos de teclado (Shortcuts) funcionales a nivel de ventana.
 [x] Soporte para drag & drop externo (archivos al canvas).
 [x] Implementar conexión real con el Portapapeles del sistema (copiar/pegar externo).
+[/] Refinar QClipboard para manejar fallos de pygame.scrap de forma más elegante.
 
 5. DIÁLOGOS Y REFINAMIENTO
 --------------------------
@@ -43,3 +55,5 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT
 [x] Crear un QFontDialog.
 [x] Refinar el explorador de archivos (QFileDialog) para que sea más intuitivo.
 [x] Optimización de renderizado (scaled rendering) en QGraphicsView.
+[ ] Mejorar la robustez de los diálogos modales (PyGameModalDialog) para evitar bloqueos en el loop de eventos.
+[ ] Implementar QStyledItemDelegate con soporte para personalización completa de dibujado en vistas.
