@@ -32,7 +32,12 @@ class QMainWindow(QWidget):
         
         if self._menu_bar: self._menu_bar._rect = pygame.Rect(0, 0, self._rect.width, menu_h)
         if self._status_bar: self._status_bar._rect = pygame.Rect(0, self._rect.height - status_h, self._rect.width, status_h)
-        if self._central_widget: self._central_widget._rect = pygame.Rect(0, menu_h, self._rect.width, self._rect.height - menu_h - status_h)
+        if self._central_widget:
+            cw, ch = self._rect.width, self._rect.height - menu_h - status_h
+            if self._central_widget._rect.size != (cw, ch):
+                self._central_widget.resize(cw, ch)
+            self._central_widget._rect.x = 0
+            self._central_widget._rect.y = menu_h
         
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         self._draw(my_pos)

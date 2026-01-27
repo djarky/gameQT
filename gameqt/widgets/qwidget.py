@@ -23,7 +23,9 @@ class QWidget(QObject):
         self._window_title = title
         from .qmainwindow import QMainWindow
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
-    def resize(self, w, h): self._rect.width, self._rect.height = w, h
+    def resize(self, w, h): 
+        self._rect.width, self._rect.height = w, h
+        if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
     def setMinimumSize(self, w, h): self._min_size = (w, h)
     def setCursor(self, cursor): 
         # cursor is often a Qt.CursorShape
