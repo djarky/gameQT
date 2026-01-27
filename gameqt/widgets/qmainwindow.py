@@ -5,7 +5,7 @@ from .qwidget import QWidget
 
 class QMainWindow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent); self._screen = None; self._central_widget = None; self._menu_bar = None
+        super().__init__(parent); self._screen = None; self._central_widget = None; self._menu_bar = None; self._status_bar = None
         if QApplication._instance: QApplication._instance._windows.append(self)
     def show(self):
         super().show()
@@ -19,11 +19,20 @@ class QMainWindow(QWidget):
     def setCentralWidget(self, widget):
         self._central_widget = widget
         widget._set_parent(self); widget.show()
+    def statusBar(self):
+        if not self._status_bar:
+            from .qstatusbar import QStatusBar
+            self._status_bar = QStatusBar(self)
+            self._status_bar.show()
+        return self._status_bar
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
         menu_h = 35 if self._menu_bar and self._menu_bar.isVisible() else 0
+        status_h = 25 if self._status_bar and self._status_bar.isVisible() else 0
+        
         if self._menu_bar: self._menu_bar._rect = pygame.Rect(0, 0, self._rect.width, menu_h)
-        if self._central_widget: self._central_widget._rect = pygame.Rect(0, menu_h, self._rect.width, self._rect.height - menu_h)
+        if self._status_bar: self._status_bar._rect = pygame.Rect(0, self._rect.height - status_h, self._rect.width, status_h)
+        if self._central_widget: self._central_widget._rect = pygame.Rect(0, menu_h, self._rect.width, self._rect.height - menu_h - status_h)
         
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         self._draw(my_pos)

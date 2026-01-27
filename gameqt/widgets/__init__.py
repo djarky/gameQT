@@ -19,11 +19,12 @@ from .qfontdialog import QFontDialog
 from .qgroupbox import QGroupBox
 from .qtoolbar import QToolBar
 from .qstackedwidget import QStackedWidget
+from .qstatusbar import QStatusBar
 
 __all__ = [
     'QWidget', 'QMainWindow', 'QDialog', 'QLabel', 'QPushButton',
     'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox',
     'QSlider', 'QTabWidget', 'QTextEdit', 'QScrollArea', 'QFileDialog',
     'FileDialog', 'QMessageBox', 'MessageBox', 'QColorDialog',
-    'QFontDialog', 'QGroupBox', 'QToolBar', 'QStackedWidget'
+    'QFontDialog', 'QGroupBox', 'QToolBar', 'QStackedWidget', 'QStatusBar'
 ]

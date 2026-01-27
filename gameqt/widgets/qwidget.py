@@ -20,8 +20,11 @@ class QWidget(QObject):
         from .qmainwindow import QMainWindow
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
     def resize(self, w, h): self._rect.width, self._rect.height = w, h
-    def setMinimumSize(self, w, h): pass
-    def setCursor(self, cursor): pass
+    def setMinimumSize(self, w, h): self._min_size = (w, h)
+    def setCursor(self, cursor): 
+        # cursor is often a Qt.CursorShape
+        try: pygame.mouse.set_cursor(cursor)
+        except: pass
     def viewport(self): return self # Fallback
     def mapToGlobal(self, p):
         # Simplistic: just add widget absolute position
@@ -199,11 +202,14 @@ class QWidget(QObject):
                 # Simplistic border
                 pygame.draw.rect(screen, (100, 100, 100), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
     def statusBar(self):
-        class MockStatusBar:
-            def addWidget(self, w): 
-                if QApplication._instance and QApplication._instance._windows:
-                    w._set_parent(QApplication._instance._windows[0]); w.show()
-        return MockStatusBar()
+        # In Qt, only QMainWindow has a statusBar. 
+        # For compatibility in nested widgets, we can try to find the window.
+        curr = self
+        while curr:
+            if hasattr(curr, 'statusBar') and curr != self:
+                return curr.statusBar()
+            curr = curr._parent
+        return None
     def setAcceptDrops(self, b): 
         self._accept_drops = b
     def addAction(self, action): 

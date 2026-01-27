@@ -1,7 +1,16 @@
 import pygame
-from .core import Signal, Qt
+from .core import QObject, Signal, Qt
 from .widgets import QWidget
 from .application import QApplication
+
+class QAbstractItemModel(QObject):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+    def index(self, row, column, parent=None): return None
+    def parent(self, index): return None
+    def rowCount(self, parent=None): return 0
+    def columnCount(self, parent=None): return 0
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole): return None
 
 class QAbstractItemView(QWidget):
     class SelectionMode: SingleSelection = 1; MultiSelection = 2; ExtendedSelection = 3; ContourSelection = 4
@@ -30,8 +39,20 @@ class QHeaderView:
         elif len(args) == 1:
             self._default_resize_mode = args[0]
 
-class QStyledItemDelegate: pass
-class QStyleOptionViewItem: pass
+class QStyleOptionViewItem:
+    def __init__(self):
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.state = 0
+        self.text = ""
+
+class QStyledItemDelegate(QObject):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+    def paint(self, painter, option, index):
+        # Basic text painting
+        text = index.data()
+        if text:
+            painter.drawText(option.rect.x, option.rect.y, str(text))
 
 class QTreeWidget(QAbstractItemView):
     def __init__(self, parent=None):
@@ -76,8 +97,16 @@ class QTreeWidget(QAbstractItemView):
     def currentItem(self):
         sel = self.selectedItems()
         return sel[0] if sel else None
-    def expandAll(self): pass
-    def collapseAll(self): pass
+    def expandAll(self):
+        def expand(item):
+            item.setExpanded(True)
+            for i in range(item.childCount()): expand(item.child(i))
+        for i in range(self._root.childCount()): expand(self._root.child(i))
+    def collapseAll(self):
+        def collapse(item):
+            item.setExpanded(False)
+            for i in range(item.childCount()): collapse(item.child(i))
+        for i in range(self._root.childCount()): collapse(self._root.child(i))
     def _draw(self, pos):
         super()._draw(pos)
         if not QApplication._instance or not QApplication._instance._windows: return
@@ -177,9 +206,13 @@ class QTreeWidget(QAbstractItemView):
                  self.itemChanged.emit(item, 2)
 
 class QTreeWidgetItem:
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, strings=None):
         self._parent, self._children, self._data, self._text = parent, [], {}, {}
         self._selected = False; self._expanded = True; self._flags = 0
+        if isinstance(strings, list):
+            for i, s in enumerate(strings): self.setText(i, s)
+        elif isinstance(strings, str):
+            self.setText(0, strings)
         if parent and hasattr(parent, 'addChild'): parent.addChild(self)
     def flags(self): return self._flags
     def setFlags(self, f): self._flags = f
@@ -188,6 +221,7 @@ class QTreeWidgetItem:
     def checkState(self, column): return self._data.get(('check', column), Qt.CheckState.Unchecked)
     def setCheckState(self, column, state): self._data[('check', column)] = state
     def setExpanded(self, b): self._expanded = b
+    def isExpanded(self): return self._expanded
     def data(self, c, r): return self._data.get((c, r))
     def setData(self, c, r, v): self._data[(c, r)] = v
     def text(self, c): return self._text.get(c, "")
@@ -208,11 +242,16 @@ class QTreeWidgetItem:
     def child(self, i): return self._children[i]
     def parent(self): return self._parent if isinstance(self._parent, QTreeWidgetItem) else None
 
+class QListModel(QAbstractItemModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.rowsMoved = Signal()
+
 class QListWidget(QAbstractItemView):
     class ViewMode: IconMode = 1; ListMode = 0
     def __init__(self, parent=None):
         super().__init__(parent); self.itemClicked, self._items = Signal(), []
-        self._model = type('MockModel', (), {'rowsMoved': Signal()})()
+        self._model = QListModel(self)
     def setIconSize(self, s): 
         self._icon_size = s
     def setViewMode(self, m): 

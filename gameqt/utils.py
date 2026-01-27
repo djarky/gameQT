@@ -80,7 +80,7 @@ class QBuffer:
         self._pos = 0
         return True
     def data(self): 
-        return type('MockData', (), {'data': lambda: bytes(self._data)})()
+        return bytes(self._data)
     def write(self, data):
         self._data.extend(data)
     def setData(self, data):
@@ -92,8 +92,23 @@ class QIODevice:
 class QMimeData:
     def hasImage(self): return False
 
-class QModelIndex: pass
-class QPrinter: pass
+class QModelIndex:
+    def __init__(self, row=-1, column=-1, internalPointer=None, model=None):
+        self._row, self._col, self._ptr, self._model = row, column, internalPointer, model
+    def row(self): return self._row
+    def column(self): return self._col
+    def internalPointer(self): return self._ptr
+    def isValid(self): return self._row != -1 and self._col != -1
+    def model(self): return self._model
+
+class QPrinter:
+    class OutputFormat: PdfFormat = 0; NativeFormat = 1
+    def __init__(self):
+        self._output_format = QPrinter.OutputFormat.PdfFormat
+        self._output_filename = "output.pdf"
+    def setOutputFormat(self, f): self._output_format = f
+    def setOutputFileName(self, name): self._output_filename = name
+    def outputFileName(self): return self._output_filename
 
 class QDrag:
     def __init__(self, parent): 

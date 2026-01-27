@@ -7,6 +7,12 @@ from .application import QApplication
 class QGraphicsScene(QObject):
     def __init__(self, parent=None):
         super().__init__(parent); self.selectionChanged = Signal(); self.items_list, self._bg_brush, self._scene_rect = [], None, QRectF(0,0,800,600); self._views = []
+        self._focus_item = None
+    def focusItem(self): return self._focus_item
+    def setFocusItem(self, item): 
+        if self._focus_item != item:
+            self._focus_item = item
+            if item: item.setFocus()
     def views(self): return self._views
     def addItem(self, item): self.items_list.append(item); item._scene = self
     def removeItem(self, item): (self.items_list.remove(item), setattr(item, '_scene', None)) if item in self.items_list else None
@@ -52,7 +58,9 @@ class QGraphicsItem:
     def scale(self): return 1.0
     def rotation(self): return self._rotation
     def setRotation(self, r): self._rotation = r
-    def update(self): pass
+    def update(self): 
+        if self._scene:
+            for v in self._scene.views(): v.update()
     def mapToScene(self, *args): return QPointF(*args) + self._pos
     def mapFromScene(self, *args): return QPointF(*args) - self._pos
     def sceneBoundingRect(self):
@@ -63,7 +71,8 @@ class QGraphicsItem:
         self._data[key] = value
     def data(self, key):
         return getattr(self, '_data', {}).get(key)
-    def setFocus(self): pass
+    def setFocus(self): 
+        if self._scene: self._scene._focus_item = self
     def paint(self, painter, option, widget): pass
     def mousePressEvent(self, event): pass
     def keyPressEvent(self, event): pass

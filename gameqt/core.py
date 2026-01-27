@@ -22,7 +22,20 @@ class Qt:
     class KeyboardModifier: ControlModifier = pygame.KMOD_CTRL; AltModifier = pygame.KMOD_ALT; ShiftModifier = pygame.KMOD_SHIFT; NoModifier = 0
     class TransformationMode: SmoothTransformation = 1
     class CursorShape: ArrowCursor = pygame.SYSTEM_CURSOR_ARROW; CrossCursor = pygame.SYSTEM_CURSOR_CROSSHAIR; SizeFDiagCursor = pygame.SYSTEM_CURSOR_SIZENWSE
-    class ItemDataRole: UserRole = 1000
+    class ItemDataRole: 
+        DisplayRole = 0
+        DecorationRole = 1
+        EditRole = 2
+        ToolTipRole = 3
+        StatusTipRole = 4
+        WhatsThisRole = 5
+        SizeHintRole = 13
+        FontRole = 6
+        TextAlignmentRole = 7
+        BackgroundRole = 8
+        ForegroundRole = 9
+        CheckStateRole = 10
+        UserRole = 1000
     class CheckState: Checked = 2; Unchecked = 0
     class PenStyle: SolidLine = 1; DashLine = 2
     class BrushStyle: SolidPattern = 1; NoBrush = 0
