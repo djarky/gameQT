@@ -194,25 +194,73 @@ class QGridLayout:
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
         self._margins = (0, 0, 0, 0)
         self._spacing = 5
-    def addWidget(self, w, row, col, rowSpan=1, colSpan=1, alignment=0):
+        self._next_row = 0
+        self._next_col = 0
+        self._col_count = 2  # Default column count for auto-insert
+        self._row_heights = {}  # row -> height (optional per-row height)
+        self._col_widths = {}   # col -> width (optional per-col width)
+        
+    def setColumnCount(self, count):
+        """Set the number of columns for auto-insert mode."""
+        self._col_count = count
+        
+    def setRowMinimumHeight(self, row, height):
+        """Set minimum height for a specific row."""
+        self._row_heights[row] = height
+        
+    def setColumnMinimumWidth(self, col, width):
+        """Set minimum width for a specific column."""
+        self._col_widths[col] = width
+        
+    def addWidget(self, w, row=None, col=None, rowSpan=1, colSpan=1, alignment=0):
+        """Add widget at specified position, or auto-insert if row/col are None."""
         w._layout_alignment = alignment
+        
+        # Auto-insert mode
+        if row is None or col is None:
+            row = self._next_row
+            col = self._next_col
+            
         self.items[(row, col)] = {'widget': w, 'rs': rowSpan, 'cs': colSpan}
+        
+        # Update next position
+        if row >= self._next_row and col >= self._next_col:
+            self._next_col = col + colSpan
+            if self._next_col >= self._col_count:
+                self._next_col = 0
+                self._next_row = row + 1
+            if row > self._next_row:
+                self._next_row = row
+        
         if self._parent:
             w._set_parent(self._parent)
             if self._parent.isVisible(): w.show()
+            
+    def addItem(self, item, row=None, col=None, rowSpan=1, colSpan=1):
+        """Add item (widget or layout) at specified or auto-calculated position."""
+        if row is None or col is None:
+            row = self._next_row
+            col = self._next_col
+            
+        self.items[(row, col)] = {'widget': item, 'rs': rowSpan, 'cs': colSpan}
+        
+        # Update next position
+        self._next_col = col + colSpan
+        if self._next_col >= self._col_count:
+            self._next_col = 0
+            self._next_row = row + 1
+            
+        if hasattr(item, '_set_parent'): item._set_parent(self._parent)
+        
     def _set_parent(self, p):
         self._parent = p
         for info in self.items.values():
             w = info['widget']
             if hasattr(w, '_set_parent'): w._set_parent(p)
-    def addItem(self, i):
-        # Grid addItem is tricky without row/col. Assume next available? 
-        # For now just append to internal list for generic layout logic if needed
-        if not hasattr(self, '_generic_items'): self._generic_items = []
-        self._generic_items.append(i)
-        if hasattr(i, '_set_parent'): i._set_parent(self._parent)
+            
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
+    
     def arrange(self, rect):
         if not self.items: return
         rows = max(r + info['rs'] for (r, c), info in self.items.items())
@@ -224,15 +272,27 @@ class QGridLayout:
         available_w = rect.width - margins[0] - margins[2] - (cols - 1) * spacing
         available_h = rect.height - margins[1] - margins[3] - (rows - 1) * spacing
         
-        cell_w = available_w / cols if cols > 0 else available_w
-        cell_h = available_h / rows if rows > 0 else available_h
+        # Calculate cell sizes (can be customized per row/col)
+        default_cell_w = available_w / cols if cols > 0 else available_w
+        default_cell_h = available_h / rows if rows > 0 else available_h
         
         for (r, c), info in self.items.items():
             w = info['widget']
-            if not w.isVisible(): continue
+            if not getattr(w, 'isVisible', lambda: True)(): continue
             
-            x = rect.x + margins[0] + c * (cell_w + spacing)
-            y = rect.y + margins[1] + r * (cell_h + spacing)
+            # Get cell dimensions (use custom or default)
+            cell_w = self._col_widths.get(c, default_cell_w)
+            cell_h = self._row_heights.get(r, default_cell_h)
+            
+            x = rect.x + margins[0]
+            for i in range(c):
+                x += self._col_widths.get(i, default_cell_w) + spacing
+                
+            y = rect.y + margins[1]
+            for i in range(r):
+                y += self._row_heights.get(i, default_cell_h) + spacing
+            
+            # Calculate span dimensions
             width = cell_w * info['cs'] + (info['cs'] - 1) * spacing
             height = cell_h * info['rs'] + (info['rs'] - 1) * spacing
             
@@ -277,7 +337,21 @@ class QFormLayout:
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
         self._margins = (10, 10, 10, 10)
         self._spacing = 10
-        self._label_width = 100
+        self._label_width = 120
+        self._row_heights = {}  # row_index -> height
+        self._row_spacing = {}  # row_index -> spacing after this row
+
+    def setLabelWidth(self, width):
+        """Set the width for all labels."""
+        self._label_width = width
+        
+    def setRowMinimumHeight(self, row, height):
+        """Set minimum height for a specific row."""
+        self._row_heights[row] = height
+        
+    def setRowSpacing(self, row, spacing):
+        """Set custom spacing after a specific row."""
+        self._row_spacing[row] = spacing
 
     def addRow(self, label, field):
         if isinstance(label, str):
@@ -290,6 +364,7 @@ class QFormLayout:
         if self._parent:
             if label_widget: label_widget._set_parent(self._parent)
             if field: field._set_parent(self._parent)
+            
     def _set_parent(self, p):
         self._parent = p
         for label, field in self.rows:
@@ -299,34 +374,55 @@ class QFormLayout:
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
 
+    def _calculate_row_height(self, row_idx, label, field):
+        """Calculate dynamic height based on content."""
+        if row_idx in self._row_heights:
+            return self._row_heights[row_idx]
+        
+        height = 35  # Default minimum
+        
+        # Check field type for taller widgets
+        if field:
+            field_class = field.__class__.__name__
+            if field_class in ('QTextEdit', 'QListWidget', 'QTreeWidget'):
+                height = max(height, 100)
+            elif field_class in ('QComboBox', 'QSpinBox'):
+                height = max(height, 32)
+                
+        return height
+
     def arrange(self, rect):
         if not self.rows: return
         
         margins = self._margins
-        spacing = self._spacing
         label_w = self._label_width
         
         curr_y = rect.y + margins[1]
-        field_w = rect.width - margins[0] - margins[2] - label_w - spacing
+        field_w = rect.width - margins[0] - margins[2] - label_w - self._spacing
         
-        for label, field in self.rows:
-            h = 30 # Fixed row height for now
+        for idx, (label, field) in enumerate(self.rows):
+            h = self._calculate_row_height(idx, label, field)
+            spacing = self._row_spacing.get(idx, self._spacing)
             
             # Label rect
             if label:
                 label_rect = pygame.Rect(rect.x + margins[0], curr_y, label_w, h)
                 label._rect = label_rect
-                if label.isVisible():
-                    if hasattr(label, '_layout') and label._layout: label._layout.arrange(pygame.Rect(0, 0, label_rect.width, label_rect.height))
-                    elif hasattr(label, 'arrange'): label.arrange(label_rect)
+                if getattr(label, 'isVisible', lambda: True)():
+                    if hasattr(label, '_layout') and label._layout: 
+                        label._layout.arrange(pygame.Rect(0, 0, label_rect.width, label_rect.height))
+                    elif hasattr(label, 'arrange'): 
+                        label.arrange(label_rect)
             
             # Field rect
             if field:
-                field_rect = pygame.Rect(rect.x + margins[0] + label_w + spacing, curr_y, field_w, h)
+                field_rect = pygame.Rect(rect.x + margins[0] + label_w + self._spacing, curr_y, field_w, h)
                 field._rect = field_rect
-                if field.isVisible():
-                    if hasattr(field, '_layout') and field._layout: field._layout.arrange(pygame.Rect(0, 0, field_rect.width, field_rect.height))
-                    elif hasattr(field, 'arrange'): field.arrange(field_rect)
+                if getattr(field, 'isVisible', lambda: True)():
+                    if hasattr(field, '_layout') and field._layout: 
+                        field._layout.arrange(pygame.Rect(0, 0, field_rect.width, field_rect.height))
+                    elif hasattr(field, 'arrange'): 
+                        field.arrange(field_rect)
             
             curr_y += h + spacing
 

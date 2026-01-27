@@ -26,10 +26,10 @@ class QLineEdit(QWidget):
         pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1)
         font = pygame.font.SysFont(None, 18)
         
-        display_text = self._text
+        display_text = str(self._text) if self._text else ""
         text_color = (20, 20, 20)
         if not display_text and hasattr(self, '_placeholder') and not self._focused:
-            display_text = self._placeholder
+            display_text = str(self._placeholder) if hasattr(self, '_placeholder') else ""
             text_color = (150, 150, 150)
             
         txt = font.render(display_text, True, text_color)
