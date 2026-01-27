@@ -1,70 +1,26 @@
-[2026-01-26 17:43:04] Calculator: FAIL
-[2026-01-26 17:43:16] Color Picker: FAIL
-[2026-01-26 17:43:23] Drawing Board: FAIL
-[2026-01-26 17:43:32] Login Form: FAIL
-[2026-01-26 17:43:38] Minimal App: PASS
-[2026-01-26 17:43:44] Settings Panel: FAIL
-[2026-01-26 17:43:50] Shape Editor: FAIL
-[2026-01-26 17:44:14] Text Editor: PASS
-[2026-01-26 17:44:22] Todo App: FAIL
-[2026-01-26 17:44:29] Test Advanced Graphics: PASS
-[2026-01-26 17:44:38] Test Background Opacity: FAIL
-[2026-01-26 17:44:44] Test Background Slider: FAIL
-[2026-01-26 17:45:06] Test Clipboard: FAIL
-[2026-01-26 17:45:16] Test Coordinates: PASS
-[2026-01-26 17:45:33] Test Dragdrop: PASS
-[2026-01-26 17:45:43] Test Form Layout: PASS
-[2026-01-26 17:45:50] Test Geometry: PASS
-[2026-01-26 17:45:55] Test Item Views: FAIL
-[2026-01-26 17:46:03] Test Menus: FAIL
-[2026-01-26 17:46:07] Test Menus: PASS
-[2026-01-26 17:46:22] Test New Features: PASS
-[2026-01-26 17:46:40] Test Phase4: PASS
-[2026-01-26 17:46:41] Test Phase4: FAIL
-[2026-01-26 17:46:54] Test Ui Improvements: PASS
-[2026-01-26 17:52:44] Calculator: FAIL
-[2026-01-26 17:52:50] Color Picker: FAIL
-[2026-01-26 17:52:57] Drawing Board: FAIL
-[2026-01-26 17:53:01] Login Form: FAIL
-[2026-01-26 17:53:07] Minimal App: PASS
-[2026-01-26 17:53:12] Settings Panel: FAIL
-[2026-01-26 17:53:19] Shape Editor: FAIL
-[2026-01-26 17:53:34] Text Editor: PASS
-[2026-01-26 17:53:39] Todo App: FAIL
-[2026-01-26 17:53:45] Test Advanced Graphics: PASS
-[2026-01-26 17:53:50] Test Background Opacity: FAIL
-[2026-01-26 17:53:55] Test Background Slider: FAIL
-[2026-01-26 17:54:05] Test Clipboard: FAIL
-[2026-01-26 17:54:12] Test Coordinates: PASS
-[2026-01-26 17:54:20] Test Dragdrop: PASS
-[2026-01-26 17:54:27] Test Form Layout: PASS
-[2026-01-26 17:54:33] Test Geometry: PASS
-[2026-01-26 17:54:37] Test Item Views: FAIL
-[2026-01-26 17:54:41] Test Menus: PASS
-[2026-01-26 17:54:46] Test Menus: FAIL
-[2026-01-26 17:54:54] Test New Features: PASS
-[2026-01-26 17:55:04] Test Phase4: PASS
-[2026-01-26 17:55:12] Test Ui Improvements: PASS
-[2026-01-26 18:03:34] Calculator: PASS
-[2026-01-26 18:03:41] Color Picker: PASS
-[2026-01-26 18:03:50] Drawing Board: FAIL
-[2026-01-26 18:03:56] Login Form: FAIL
-[2026-01-26 18:04:03] Minimal App: PASS
-[2026-01-26 18:04:08] Settings Panel: FAIL
-[2026-01-26 18:04:12] Shape Editor: FAIL
-[2026-01-26 18:04:22] Text Editor: PASS
-[2026-01-26 18:04:27] Todo App: FAIL
-[2026-01-26 18:04:34] Test Advanced Graphics: PASS
-[2026-01-26 18:04:40] Test Background Opacity: FAIL
-[2026-01-26 18:04:46] Test Background Slider: FAIL
-[2026-01-26 18:05:10] Test Clipboard: FAIL
-[2026-01-26 18:05:15] Test Coordinates: PASS
-[2026-01-26 18:05:22] Test Dragdrop: PASS
-[2026-01-26 18:05:30] Test Form Layout: PASS
-[2026-01-26 18:05:33] Test Geometry: PASS
-[2026-01-26 18:05:38] Test Item Views: FAIL
-[2026-01-26 18:05:42] Test Menus: PASS
-[2026-01-26 18:05:46] Test Menus: FAIL
-[2026-01-26 18:05:54] Test New Features: PASS
-[2026-01-26 18:06:08] Test Phase4: PASS
-[2026-01-26 18:06:15] Test Ui Improvements: PASS
+[2026-01-27 13:41:40] Calculator: FAIL
+[2026-01-27 13:41:47] Color Picker: PASS
+[2026-01-27 13:41:53] Drawing Board: FAIL
+[2026-01-27 13:42:01] Login Form: PASS
+[2026-01-27 13:42:07] Menus Demo: FAIL
+[2026-01-27 13:42:15] Minimal App: PASS
+[2026-01-27 13:42:24] Settings Panel: FAIL
+[2026-01-27 13:42:32] Shape Editor: FAIL
+[2026-01-27 13:42:45] Text Editor: FAIL
+[2026-01-27 13:42:52] Todo App: FAIL
+[2026-01-27 13:42:59] Test Advanced Graphics: PASS
+[2026-01-27 13:43:04] Test Background Opacity: PASS
+[2026-01-27 13:43:08] Test Background Slider: PASS
+[2026-01-27 13:43:19] Test Clipboard: FAIL
+[2026-01-27 13:43:23] Test Coordinates: PASS
+[2026-01-27 13:43:41] Test Dragdrop: PASS
+[2026-01-27 13:44:05] Test Form Layout: PASS
+[2026-01-27 13:44:10] Test Geometry: PASS
+[2026-01-27 13:44:14] Test Item Views: FAIL
+[2026-01-27 13:44:18] Test Menus: PASS
+[2026-01-27 13:44:31] Test New Features: PASS
+[2026-01-27 13:44:45] Test Phase4: PASS
+[2026-01-27 13:44:53] Test Ui Improvements: PASS
+[2026-01-27 13:50:48] Settings Panel: PASS
+[2026-01-27 13:50:52] Settings Panel: FAIL
+[2026-01-27 13:50:52] Shape Editor: PASS

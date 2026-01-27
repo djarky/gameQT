@@ -9,7 +9,8 @@ if os.path.join(project_root, 'pdf_visual_editor') not in sys.path:
      sys.path.insert(0, os.path.join(project_root, 'pdf_visual_editor'))
 
 from gameqt.application import QApplication
-from gameqt.widgets import QMainWindow, QWidget, QLabel, QVBoxLayout
+from gameqt.widgets import QMainWindow, QWidget, QLabel
+from gameqt.layouts import QVBoxLayout
 from gameqt.menus import QMenuBar, QAction
 
 class MenusDemo(QMainWindow):
