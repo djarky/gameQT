@@ -56,8 +56,12 @@ class QStyledItemDelegate(QObject):
 
 class QTreeWidget(QAbstractItemView):
     def __init__(self, parent=None):
-        super().__init__(parent); self._items, self._header = [], QHeaderView(); self._root = QTreeWidgetItem(self); self.tree = self
+        super().__init__(parent); self._items, self._header = [], QHeaderView(); self._root = QTreeWidgetItem(None); self.tree = self
+        self._root._item_view = self
         self.itemChanged, self.itemSelectionChanged, self.customContextMenuRequested = Signal(object, int), Signal(), Signal(object)
+    def addChild(self, item): self._root.addChild(item)
+    def addTopLevelItem(self, item): self.addChild(item)
+    def topLevelItemCount(self): return self._root.childCount()
     def clear(self): self._items = []
     def clearSelection(self):
         def unselect(item):
