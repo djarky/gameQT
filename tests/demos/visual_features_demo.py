@@ -29,8 +29,9 @@ class VisualFeaturesDemo(QMainWindow):
         layout.addWidget(self.input_field)
         
         # 2. QTreeWidget with Expand/Collapse
-        layout.addWidget(QLabel("\n2. QTreeWidget with Expand/Collapse:"))
+        layout.addWidget(QLabel("\n2. QTreeWidget with Expand/Collapse (Stretched Columns):"))
         self.tree = QTreeWidget()
+        self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         
         root = QTreeWidgetItem(self.tree, ["Project Root"])
         src = QTreeWidgetItem(root, ["src"])
