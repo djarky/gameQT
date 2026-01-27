@@ -42,7 +42,16 @@ class QPixmap:
     def scaledToWidth(self, w, mode=None):
         if not self.surface or self.width() == 0: return self
         h = int(self.height() * (w / self.width())); return QPixmap(pygame.transform.smoothscale(self.surface, (w, h)))
-    def toImage(self): return QImage()
+    def toImage(self): return QImage(self.surface)
+    def copy(self, rect):
+        if not self.surface: return QPixmap()
+        r = rect._to_pygame() if hasattr(rect, '_to_pygame') else (rect.toRect()._to_pygame() if hasattr(rect, 'toRect') else rect)
+        # Ensure rect is within surface bounds to avoid pygame error
+        surf_rect = self.surface.get_rect()
+        clip_rect = surf_rect.clip(r)
+        if clip_rect.width <= 0 or clip_rect.height <= 0:
+            return QPixmap(pygame.Surface((1, 1), pygame.SRCALPHA))
+        return QPixmap(self.surface.subsurface(clip_rect).copy())
     def save(self, buffer, fmt="PNG"):
         if not self.surface: return False
         try:
@@ -69,7 +78,9 @@ class QImage:
     Format_RGBA8888 = 26
     def __init__(self, *args):
         self.surface = None
-        if len(args) >= 3:
+        if len(args) == 1 and isinstance(args[0], pygame.Surface):
+            self.surface = args[0]
+        elif len(args) >= 3:
             if isinstance(args[0], (bytes, bytearray)):
                 data, w, h, bpl, fmt = args
                 mode = "RGBA" if fmt in (QImage.Format_RGBA8888, QImage.Format.Format_RGBA8888) else "RGB"
@@ -114,12 +125,18 @@ class QPainter:
     def rotate(self, angle): self._transform.rotate(angle)
     def drawRect(self, rect):
         if not self._device: return
-        r = rect.toRect() if hasattr(rect, 'toRect') else rect
-        # Apply current transform translation and scale
+        # Access coordinates safely
+        x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
+        y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
+        w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
+        h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
+        
         tx, ty = self._transform._m[6], self._transform._m[7]
         sx, sy = self._transform._m[0], self._transform._m[4]
-        r.x = int(r.x * sx + tx); r.y = int(r.y * sy + ty)
-        r.width = int(r.width * sx); r.height = int(r.height * sy)
+        
+        nx, ny = int(x * sx + tx), int(y * sy + ty)
+        nw, nh = int(w * sx), int(h * sy)
+        r = pygame.Rect(nx, ny, nw, nh)
         
         # Fill
         if self._brush._style == 1: # SolidPattern
@@ -145,10 +162,16 @@ class QPainter:
         pygame.draw.line(self._device, self._pen._color.to_pygame(), (p1_t.x(), p1_t.y()), (p2_t.x(), p2_t.y()), self._pen._width)
     def drawEllipse(self, rect):
         if not self._device: return
-        r = rect.toRect() if hasattr(rect, 'toRect') else rect
+        x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
+        y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
+        w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
+        h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
+        
         tx, ty = self._transform._m[6], self._transform._m[7]
         sx, sy = self._transform._m[0], self._transform._m[4]
-        r.x = int(r.x * sx + tx); r.y = int(r.y * sy + ty); r.width = int(r.width * sx); r.height = int(r.height * sy)
+        nx, ny = int(x * sx + tx), int(y * sy + ty)
+        nw, nh = int(w * sx), int(h * sy)
+        r = pygame.Rect(nx, ny, nw, nh)
         if self._brush._style == 1: pygame.draw.ellipse(self._device, self._brush._color.to_pygame(), r)
         if self._pen._style > 0: pygame.draw.ellipse(self._device, self._pen._color.to_pygame(), r, self._pen._width)
     def drawPolygon(self, points):

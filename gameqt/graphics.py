@@ -61,8 +61,16 @@ class QGraphicsItem:
     def update(self): 
         if self._scene:
             for v in self._scene.views(): v.update()
-    def mapToScene(self, *args): return QPointF(*args) + self._pos
-    def mapFromScene(self, *args): return QPointF(*args) - self._pos
+    def mapToScene(self, *args):
+        arg = args[0] if len(args) == 1 else QPointF(*args)
+        if isinstance(arg, QRectF):
+            return QRectF(arg.x() + self._pos.x(), arg.y() + self._pos.y(), arg.width(), arg.height())
+        return QPointF(arg) + self._pos
+    def mapFromScene(self, *args):
+        arg = args[0] if len(args) == 1 else QPointF(*args)
+        if isinstance(arg, QRectF):
+            return QRectF(arg.x() - self._pos.x(), arg.y() - self._pos.y(), arg.width(), arg.height())
+        return QPointF(arg) - self._pos
     def sceneBoundingRect(self):
         br = self.boundingRect(); return QRectF(self._pos.x() + br.x(), self._pos.y() + br.y(), br.width(), br.height())
     def setCursor(self, cursor): 
@@ -225,7 +233,7 @@ class QGraphicsView(QWidget):
             
             # Draw rubber band
             if self._rubber_band_rect:
-                r = self._rubber_band_rect.toRect()
+                r = self._rubber_band_rect.toRect()._to_pygame()
                 r.x += pos.x; r.y += pos.y
                 pygame.draw.rect(screen, (0, 120, 215), r, 1)
                 overlay = pygame.Surface((r.width, r.height), pygame.SRCALPHA)

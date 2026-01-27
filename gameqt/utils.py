@@ -89,8 +89,6 @@ class QBuffer:
 class QIODevice:
     class OpenModeFlag: ReadWrite = 1
 
-class QMimeData:
-    def hasImage(self): return False
 
 class QModelIndex:
     def __init__(self, row=-1, column=-1, internalPointer=None, model=None):

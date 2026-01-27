@@ -154,19 +154,42 @@ class QSize:
     def width(self): return self._w
     def height(self): return self._h
 
+class QRect:
+    def __init__(self, *args):
+        if len(args) == 4: self._x, self._y, self._w, self._h = [int(a) for a in args]
+        elif len(args) == 1:
+            if isinstance(args[0], pygame.Rect): self._x, self._y, self._w, self._h = args[0].x, args[0].y, args[0].width, args[0].height
+            elif hasattr(args[0], 'x'): self._x, self._y, self._w, self._h = int(args[0].x()), int(args[0].y()), int(args[0].width()), int(args[0].height())
+        else: self._x = self._y = self._w = self._h = 0
+    def x(self): return self._x
+    def y(self): return self._y
+    def width(self): return self._w
+    def height(self): return self._h
+    def isEmpty(self): return self._w <= 0 or self._h <= 0
+    def _to_pygame(self): return pygame.Rect(self._x, self._y, self._w, self._h)
+    def intersected(self, other):
+        r1 = self._to_pygame()
+        r2 = other._to_pygame() if hasattr(other, '_to_pygame') else pygame.Rect(int(other.x()), int(other.y()), int(other.width()), int(other.height()))
+        return QRect(r1.clip(r2))
+    def toRect(self): return self
+    def contains(self, p): return self._x <= p.x() <= self._x + self._w and self._y <= p.y() <= self._y + self._h
+
 class QRectF:
     def __init__(self, *args):
-        if len(args) == 4: self._x, self._y, self._w, self._h = args
+        if len(args) == 4: self._x, self._y, self._w, self._h = [float(a) for a in args]
         elif len(args) == 2:
-            if isinstance(args[0], QPointF) and isinstance(args[1], QPointF): self._x, self._y = args[0].x(), args[0].y(); self._w, self._h = args[1].x() - self._x, args[1].y() - self._y
+            if isinstance(args[0], QPointF) and isinstance(args[1], QPointF): 
+                self._x, self._y = min(args[0].x(), args[1].x()), min(args[0].y(), args[1].y())
+                self._w, self._h = abs(args[0].x() - args[1].x()), abs(args[0].y() - args[1].y())
             elif isinstance(args[0], QPointF) and isinstance(args[1], (int, float, QSize)):
                 self._x, self._y = args[0].x(), args[0].y()
-                self._w = args[1].width() if isinstance(args[1], QSize) else args[1]
-                self._h = args[1].height() if isinstance(args[1], QSize) else args[1]
+                self._w = float(args[1].width()) if isinstance(args[1], QSize) else float(args[1])
+                self._h = float(args[1].height()) if isinstance(args[1], QSize) else float(args[1])
+            else: self._x, self._y = float(args[0]), float(args[1]); self._w, self._h = 0.0, 0.0
         elif len(args) == 1:
-            if isinstance(args[0], pygame.Rect): self._x, self._y, self._w, self._h = args[0]
-            elif isinstance(args[0], QRectF): self._x, self._y, self._w, self._h = args[0]._x, args[0]._y, args[0]._w, args[0]._h
-        else: self._x = self._y = self._w = self._h = 0
+            if isinstance(args[0], pygame.Rect): self._x, self._y, self._w, self._h = float(args[0].x), float(args[0].y), float(args[0].width), float(args[0].height)
+            elif isinstance(args[0], (QRectF, QRect)): self._x, self._y, self._w, self._h = float(args[0].x()), float(args[0].y()), float(args[0].width()), float(args[0].height())
+        else: self._x = self._y = self._w = self._h = 0.0
     def x(self): return self._x
     def y(self): return self._y
     def width(self): return self._w
@@ -179,8 +202,11 @@ class QRectF:
         if w < 0: x += w; w = abs(w)
         if h < 0: y += h; h = abs(h)
         return QRectF(x, y, w, h)
-    def toRect(self): return pygame.Rect(int(self._x), int(self._y), int(self._w), int(self._h))
-    def intersected(self, other): return QRectF(self.toRect().clip(other.toRect()))
+    def toRect(self): return QRect(int(self._x), int(self._y), int(self._w), int(self._h))
+    def intersected(self, other):
+        r1 = self.toRect()._to_pygame()
+        r2 = other.toRect()._to_pygame() if hasattr(other, 'toRect') else pygame.Rect(int(other.x()), int(other.y()), int(other.width()), int(other.height()))
+        return QRectF(r1.clip(r2))
     def isEmpty(self): return self._w <= 0 or self._h <= 0
     def contains(self, p): return self._x <= p.x() <= self._x + self._w and self._y <= p.y() <= self._y + self._h
     def intersects(self, other):
@@ -188,6 +214,7 @@ class QRectF:
                     other.x() + other.width() <= self._x or
                     self._y + self._h <= other.y() or
                     other.y() + other.height() <= self._y)
+    def boundingRect(self): return self
 
 class QUrl:
     def __init__(self, path=""): self._path = path
@@ -199,7 +226,7 @@ class QUrl:
     def toString(self): return self._path
 
 class QMimeData:
-    def __init__(self): self._data = {}; self._urls = []
+    def __init__(self): self._data = {}; self._urls = []; self._image = None
     def setText(self, t): self._data['text/plain'] = t.encode('utf-8')
     def text(self): return self._data.get('text/plain', b'').decode('utf-8')
     def hasText(self): return 'text/plain' in self._data
@@ -208,7 +235,9 @@ class QMimeData:
     def hasUrls(self): return len(self._urls) > 0
     def setData(self, mime, data): self._data[mime] = data
     def data(self, mime): return self._data.get(mime, b'')
-    def hasImage(self): return 'image/png' in self._data or 'image/jpeg' in self._data
+    def setImageData(self, img): self._image = img
+    def imageData(self): return self._image
+    def hasImage(self): return self._image is not None or 'image/png' in self._data or 'image/jpeg' in self._data
 
 class QClipboard:
     def __init__(self):
