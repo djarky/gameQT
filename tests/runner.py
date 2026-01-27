@@ -133,6 +133,25 @@ class TestRunner(QMainWindow):
                     path = os.path.join(unit_dir, f)
                     units.append((name, path))
                     
+        # Custom sort: Put "test_..._partX.py" at the top, then others
+        def sort_key(item):
+            filename = os.path.basename(item[1]).lower()
+            is_prog_test = 'part' in filename or 'phase' in filename
+            if is_prog_test:
+                # Extract part/phase number if possible for ordering
+                try:
+                    import re
+                    match = re.search(r'(?:part|phase)(\d+)', filename)
+                    if match:
+                        return (0, int(match.group(1)), filename)
+                except:
+                    pass
+                return (0, 99, filename) # Part test but no number found
+            return (1, 0, filename) # Ordinary demo
+            
+        demos.sort(key=sort_key)
+        units.sort(key=sort_key)
+        
         return demos, units
 
     def create_test_card(self, name, path, test_type, parent):
