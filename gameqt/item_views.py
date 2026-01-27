@@ -226,7 +226,10 @@ class QListWidget(QAbstractItemView):
     def setDragDropMode(self, m): 
         self._drag_drop_mode = m
     def model(self): return self._model
-    def addItem(self, i): self._items.append(i); i._list = self
+    def addItem(self, i): 
+        if isinstance(i, str):
+            i = QListWidgetItem(i)
+        self._items.append(i); i._list = self
     def count(self): return len(self._items)
     def clear(self): self._items = []
     def item(self, i): return self._items[i] if i < len(self._items) else None
@@ -309,16 +312,18 @@ class QListWidget(QAbstractItemView):
 class QListWidgetItem:
     def __init__(self, *args):
         self._data = {}
-        self.text = ""
+        self._text = ""
         self.icon = None
         self._selected = False
         from .gui import QIcon
         if len(args) > 1: 
             self.icon = args[0] # Might be QIcon or QPixmap
-            self.text = args[1]
+            self._text = args[1]
         elif len(args) > 0: 
             if isinstance(args[0], QIcon): self.icon = args[0]
-            else: self.text = args[0]
+            else: self._text = args[0]
     def setData(self, r, v): self._data[r] = v
     def data(self, r): return self._data.get(r)
-    def text(self): return self.text
+    def text(self): return self._text
+    def isSelected(self): return self._selected
+    def setSelected(self, b): self._selected = b

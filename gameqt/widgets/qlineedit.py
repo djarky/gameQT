@@ -16,6 +16,7 @@ class QLineEdit(QWidget):
     def isReadOnly(self): return self._read_only
     def setText(self, text): self._text = text; self.textChanged.emit(text)
     def text(self): return self._text
+    def setPlaceholderText(self, text): self._placeholder = text
     def _draw(self, pos):
         screen = QApplication._instance._windows[0]._screen
         if not screen: return
@@ -24,10 +25,18 @@ class QLineEdit(QWidget):
         pygame.draw.rect(screen, bg_color, (pos.x, pos.y, self._rect.width, self._rect.height))
         pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1)
         font = pygame.font.SysFont(None, 18)
-        txt = font.render(self._text, True, (20, 20, 20))
+        
+        display_text = self._text
+        text_color = (20, 20, 20)
+        if not display_text and hasattr(self, '_placeholder') and not self._focused:
+            display_text = self._placeholder
+            text_color = (150, 150, 150)
+            
+        txt = font.render(display_text, True, text_color)
         screen.blit(txt, (pos.x + 5, pos.y + (self._rect.height - txt.get_height())//2))
+        
         if self._focused and (pygame.time.get_ticks() // 500) % 2 == 0:
-            cursor_x = pos.x + 5 + txt.get_width()
+            cursor_x = pos.x + 5 + font.size(self._text)[0]
             pygame.draw.line(screen, (0, 0, 0), (cursor_x, pos.y + 5), (cursor_x, pos.y + self._rect.height - 5), 1)
     def mousePressEvent(self, ev):
         self._focused = True
