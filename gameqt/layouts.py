@@ -39,15 +39,20 @@ class QVBoxLayout:
         if not visible_items: return
         
         margins = getattr(self, '_margins', (0,0,0,0))
-        spacing = getattr(self, '_spacing', 0)
+        spacing = getattr(self, '_spacing', 5)  # Default spacing of 5
         
         fixed_h = 0
         expandable_count = 0
         for item in visible_items:
             class_name = item.__class__.__name__
-            if class_name in ('QPushButton', 'QLabel', 'QLineEdit'): fixed_h += 30 
+            # Check if widget has explicit height set (more than default 100)
+            widget_h = getattr(item, '_rect', None)
+            if widget_h and hasattr(widget_h, 'height') and widget_h.height > 0 and widget_h.height != 100:
+                fixed_h += widget_h.height
+            elif class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'): 
+                fixed_h += 35  # Slightly taller default
             elif class_name == 'Spacer':
-                if getattr(item, 'stretch', 0) == 0: fixed_h += 10
+                if getattr(item, 'stretch', 0) == 0: fixed_h += 15
                 else: expandable_count += item.stretch
             else: expandable_count += 1
         
@@ -59,7 +64,19 @@ class QVBoxLayout:
         
         for item in visible_items:
             class_name = item.__class__.__name__
-            h = 30 if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox') else (int(item_h * item.stretch) if class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0 else (10 if class_name == 'Spacer' else int(item_h)))
+            
+            # Determine height: use explicit height if set, otherwise defaults
+            widget_h = getattr(item, '_rect', None)
+            if widget_h and hasattr(widget_h, 'height') and widget_h.height > 0 and widget_h.height != 100:
+                h = widget_h.height
+            elif class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
+                h = 35
+            elif class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0:
+                h = int(item_h * item.stretch)
+            elif class_name == 'Spacer':
+                h = 15
+            else:
+                h = int(item_h) if item_h > 0 else 50
             
             x = rect.x + margins[0]
             w = content_w

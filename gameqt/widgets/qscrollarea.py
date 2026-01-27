@@ -1,5 +1,6 @@
 import pygame
 from .qwidget import QWidget
+from ..core import QWheelEvent, QPoint
 
 class QScrollArea(QWidget):
     class Shape: NoFrame = 0
@@ -17,21 +18,47 @@ class QScrollArea(QWidget):
         
     def setFrameShape(self, shape): self._frame_shape = shape
     
+    def _get_content_height(self):
+        """Calculate the natural height of the scroll content based on layout items."""
+        if not self._scroll_widget:
+            return 0
+        
+        layout = getattr(self._scroll_widget, '_layout', None)
+        if layout and hasattr(layout, 'items'):
+            visible = [i for i in layout.items if getattr(i, 'isVisible', lambda: True)()]
+            spacing = getattr(layout, '_spacing', 5)
+            margins = getattr(layout, '_margins', (0, 0, 0, 0))
+            
+            total_h = margins[1] + margins[3]
+            for item in visible:
+                rect = getattr(item, '_rect', None)
+                if rect and hasattr(rect, 'height') and rect.height > 0 and rect.height != 100:
+                    total_h += rect.height
+                else:
+                    total_h += 45  # Default card height
+                total_h += spacing
+            
+            return max(total_h, self._scroll_widget._rect.height)
+        
+        return self._scroll_widget._rect.height
+    
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         self._draw(my_pos)
         
         if self._scroll_widget:
-            # Resize child to match width
-            if self._scroll_widget._rect.width != self._rect.width:
-                self._scroll_widget._rect.width = self._rect.width
-                if hasattr(self._scroll_widget, '_calculate_natural_size'):
-                    self._scroll_widget._calculate_natural_size()
+            # Resize child width to match
+            self._scroll_widget._rect.width = self._rect.width - 12  # Leave space for scrollbar
             
-            # Height is managed by child itself or natural size
+            # Calculate and set content height
+            content_h = self._get_content_height()
+            self._scroll_widget._rect.height = max(content_h, self._rect.height)
+            
             from ..application import QApplication
             screen = self._get_screen()
+            if not screen: return
+            
             old_clip = screen.get_clip()
             screen.set_clip(pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height))
             
@@ -39,40 +66,61 @@ class QScrollArea(QWidget):
             
             screen.set_clip(old_clip)
             
-            # Scrollbar
-            if self._scroll_widget._rect.height > self._rect.height:
-                bar_h = max(20, self._rect.height * (self._rect.height / self._scroll_widget._rect.height))
-                bar_y = my_pos.y + (self._scroll_y / self._scroll_widget._rect.height) * self._rect.height
-                pygame.draw.rect(screen, (180, 180, 180), (my_pos.x + self._rect.width - 8, bar_y, 6, bar_h), border_radius=3)
+            # Draw scrollbar if needed
+            if content_h > self._rect.height:
+                bar_ratio = self._rect.height / content_h
+                bar_h = max(30, self._rect.height * bar_ratio)
+                max_scroll = content_h - self._rect.height
+                bar_y = my_pos.y + (self._scroll_y / max_scroll) * (self._rect.height - bar_h) if max_scroll > 0 else my_pos.y
+                
+                # Bar background
+                pygame.draw.rect(screen, (220, 220, 220), (my_pos.x + self._rect.width - 10, my_pos.y, 8, self._rect.height), border_radius=4)
+                # Bar thumb
+                pygame.draw.rect(screen, (150, 150, 160), (my_pos.x + self._rect.width - 10, bar_y, 8, bar_h), border_radius=4)
+
+    def _handle_event(self, event, offset):
+        """Override to capture wheel events before children."""
+        if not self.isVisible(): return False
+        my_pos = offset + pygame.Vector2(self._rect.topleft)
+        
+        # Check if mouse is over this widget
+        mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+        if not mouse_rect.collidepoint(pygame.mouse.get_pos()):
+            return False
+        
+        # Intercept wheel events for scrolling
+        if event.type == pygame.MOUSEWHEEL:
+            content_h = self._get_content_height()
+            max_scroll = max(0, content_h - self._rect.height)
+            
+            delta = event.y * 30  # Scroll speed
+            self._scroll_y = max(0, min(max_scroll, self._scroll_y - delta))
+            return True  # Consume the event
+        
+        # Legacy scroll buttons
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button in (4, 5):
+            content_h = self._get_content_height()
+            max_scroll = max(0, content_h - self._rect.height)
+            
+            if event.button == 4:  # Scroll up
+                self._scroll_y = max(0, self._scroll_y - 30)
+            else:  # Scroll down
+                self._scroll_y = min(max_scroll, self._scroll_y + 30)
+            return True
+        
+        # For other events, delegate to children with scroll offset
+        if self._scroll_widget:
+            adjusted_offset = my_pos + pygame.Vector2(0, -self._scroll_y)
+            if self._scroll_widget._handle_event(event, adjusted_offset):
+                return True
+        
+        return False
 
     def wheelEvent(self, ev):
         if self._scroll_widget:
+            content_h = self._get_content_height()
+            max_scroll = max(0, content_h - self._rect.height)
             delta = ev.angleDelta().y()
-            max_scroll = max(0, self._scroll_widget._rect.height - self._rect.height)
             move = (delta / 120.0) * 40 
             self._scroll_y = max(0, min(max_scroll, self._scroll_y - move))
             ev.accept()
-
-    def mousePressEvent(self, ev):
-        if ev.button() == 4: # Scroll Up
-            self._scroll_y = max(0, self._scroll_y - 20)
-            ev.accept()
-        elif ev.button() == 5: # Scroll Down
-            if self._scroll_widget:
-                max_scroll = max(0, self._scroll_widget._rect.height - self._rect.height)
-                self._scroll_y = min(max_scroll, self._scroll_y + 20)
-                ev.accept()
-        else:
-            # Propagate click to child?
-            # Simple hit test
-            if self._scroll_widget:
-                # We need to offset event pos 
-                # ev.pos() is local to ScrollArea.
-                # Child expects local to Child.
-                # Child is at (0, -scroll_y).
-                # So child_local = ev.pos() - (0, -scroll_y) = ev.pos() + (0, scroll_y)
-                
-                local_pos = ev.pos() + pygame.Vector2(0, self._scroll_y)
-                # Create mapped event
-                # This is getting complex for MVP.
-                pass
