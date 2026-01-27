@@ -112,6 +112,10 @@ class QTreeWidget(QAbstractItemView):
             item.setExpanded(False)
             for i in range(item.childCount()): collapse(item.child(i))
         for i in range(self._root.childCount()): collapse(self._root.child(i))
+
+    def scrollToItem(self, item, hint=None):
+        pass # Not implemented in pygame fallback
+
     def _draw(self, pos):
         super()._draw(pos)
         if not QApplication._instance or not QApplication._instance._windows: return
@@ -329,7 +333,8 @@ class QListWidget(QAbstractItemView):
                     except: pass
             
             # Text
-            txt_surf = font.render(getattr(item, 'text', ''), True, (0, 0, 0))
+            text = item.text() if hasattr(item, 'text') and callable(item.text) else getattr(item, 'text', '')
+            txt_surf = font.render(str(text), True, (0, 0, 0))
             screen.blit(txt_surf, (x + (item_w - txt_surf.get_width())//2, y + item_h - 18))
             
         screen.set_clip(old_clip)
