@@ -29,7 +29,7 @@ class QTabWidget(QWidget):
         # Draw Tabs Header
         from ..application import QApplication
         if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         
         font = pygame.font.SysFont("Arial", 16)

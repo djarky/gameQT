@@ -85,7 +85,7 @@ class QLabel(QWidget):
         if self._alignment == Qt.AlignmentFlag.AlignCenter:
              y = pos.y + (self._rect.height - self._total_h) // 2
         
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if self._img_surf:
             ix = pos.x + (self._rect.width - self._img_surf.get_width()) // 2
             screen.blit(self._img_surf, (ix, y))

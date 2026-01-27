@@ -19,7 +19,7 @@ class QSpinBox(QWidget):
     def setRange(self, mi, ma): self._min, self._max = mi, ma
     def _draw(self, pos):
         from ..application import QApplication
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width - 20, self._rect.height))
         pygame.draw.rect(screen, (180, 180, 180), (pos.x, pos.y, self._rect.width - 20, self._rect.height), 1)

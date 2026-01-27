@@ -31,7 +31,7 @@ class QScrollArea(QWidget):
             
             # Height is managed by child itself or natural size
             from ..application import QApplication
-            screen = QApplication._instance._windows[0]._screen
+            screen = self._get_screen()
             old_clip = screen.get_clip()
             screen.set_clip(pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height))
             

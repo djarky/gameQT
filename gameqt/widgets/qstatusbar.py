@@ -22,7 +22,7 @@ class QStatusBar(QWidget):
         
     def _draw(self, pos):
         from ..application import QApplication
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         
         pygame.draw.rect(screen, (240, 240, 245), (pos.x, pos.y, self._rect.width, self._rect.height))

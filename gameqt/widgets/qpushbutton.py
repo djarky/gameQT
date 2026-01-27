@@ -8,7 +8,7 @@ class QPushButton(QWidget):
     def text(self): return self._text
     def _draw(self, pos):
         if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if screen:
             color = (100, 150, 240)
             if pygame.Rect(pos.x, pos.y, self._rect.width, self._rect.height).collidepoint(pygame.mouse.get_pos()): color = (120, 170, 255)

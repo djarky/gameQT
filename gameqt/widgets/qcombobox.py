@@ -23,7 +23,7 @@ class QComboBox(QWidget):
             self.currentIndexChanged.emit(index)
     def _draw(self, pos):
         from ..application import QApplication
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width, self._rect.height))
         pygame.draw.rect(screen, (180, 180, 180), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
@@ -42,7 +42,7 @@ class QComboBox(QWidget):
 
     def _draw_popup(self, pos):
         from ..application import QApplication
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         item_h = 25
         popup_h = len(self._items) * item_h
         popup_rect = pygame.Rect(pos.x, pos.y + self._rect.height, self._rect.width, popup_h)

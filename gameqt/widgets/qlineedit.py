@@ -18,7 +18,7 @@ class QLineEdit(QWidget):
     def text(self): return self._text
     def setPlaceholderText(self, text): self._placeholder = text
     def _draw(self, pos):
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         bg_color = (255, 255, 255)
         border_color = (100, 150, 240) if self._focused else (180, 180, 180)

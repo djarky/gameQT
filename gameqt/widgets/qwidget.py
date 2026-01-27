@@ -36,6 +36,12 @@ class QWidget(QObject):
         curr = self
         while curr._parent: curr = curr._parent
         return curr
+    def _get_screen(self):
+        if not QApplication._instance: return None
+        win = self.window()
+        screen = getattr(win, '_screen', None)
+        if not screen and QApplication._instance._windows: screen = getattr(QApplication._instance._windows[0], '_screen', None)
+        return screen
     def mapToGlobal(self, p):
         # Simplistic: just add widget absolute position
         # We need to find absolute position
@@ -188,10 +194,7 @@ class QWidget(QObject):
         self._draw(my_pos)
         for child in self._children: child._draw_recursive(my_pos)
     def _draw(self, pos):
-        if not QApplication._instance: return
-        win = self.window()
-        screen = getattr(win, '_screen', None)
-        if not screen and QApplication._instance._windows: screen = getattr(QApplication._instance._windows[0], '_screen', None)
+        screen = self._get_screen()
         if screen and self.__class__.__name__ != 'QMainWindow':
             color = (220, 220, 225)
             class_name = self.__class__.__name__

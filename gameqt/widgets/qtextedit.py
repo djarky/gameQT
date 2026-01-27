@@ -83,7 +83,7 @@ class QTextEdit(QWidget):
     def _draw(self, pos):
         from ..application import QApplication
         if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         # Clear background for rich text
         pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width, self._rect.height))
         pygame.draw.rect(screen, (170, 170, 180), (pos.x, pos.y, self._rect.width, self._rect.height), 1)

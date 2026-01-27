@@ -13,7 +13,7 @@ class QSlider(QWidget):
     def _draw(self, pos):
         from ..application import QApplication
         if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if screen:
             cy = pos.y + self._rect.height // 2
             pygame.draw.line(screen, (150, 150, 150), (pos.x+10, cy), (pos.x+self._rect.width-10, cy), 2)

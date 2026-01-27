@@ -14,7 +14,7 @@ class QCheckBox(QWidget):
     def setChecked(self, b): self._checked = b; self.stateChanged.emit(Qt.CheckState.Checked if b else Qt.CheckState.Unchecked)
     def isChecked(self): return self._checked
     def _draw(self, pos):
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         box_size = 16
         box_y = pos.y + (self._rect.height - box_size)//2

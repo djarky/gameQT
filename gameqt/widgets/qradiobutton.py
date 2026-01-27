@@ -21,7 +21,7 @@ class QRadioButton(QWidget):
     def isChecked(self): return self._checked
     def _draw(self, pos):
         from ..application import QApplication
-        screen = QApplication._instance._windows[0]._screen
+        screen = self._get_screen()
         if not screen: return
         radius = 8
         center_x = pos.x + radius
