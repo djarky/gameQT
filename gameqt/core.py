@@ -79,8 +79,27 @@ class Signal:
     def connect(self, slot): (self._slots.append(slot) if slot not in self._slots else None)
     def disconnect(self, slot): (self._slots.remove(slot) if slot in self._slots else None)
     def emit(self, *args): 
-        if not self._blocked:
-            [slot(*args) for slot in self._slots]
+        if self._blocked: return
+        for slot in self._slots:
+            try:
+                slot(*args)
+            except TypeError:
+                # Fallback: try calling without arguments if calling with args failed
+                if args:
+                    try:
+                        slot()
+                        continue
+                    except TypeError:
+                        pass
+                # Fallback: if we had no args but it expects one, try False 
+                # (Common for Qt's triggered(bool) signals)
+                if not args:
+                    try:
+                        slot(False)
+                        continue
+                    except TypeError:
+                        pass
+                raise
 
 class QObject:
     def __init__(self, parent=None):
