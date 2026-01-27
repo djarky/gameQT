@@ -115,14 +115,47 @@ class QPainter:
             self._brush = state['brush']
             self._font = state['font']
             self._transform = state['transform']
-    def setPen(self, pen): self._pen = pen
-    def setBrush(self, brush): self._brush = brush
+    def setPen(self, pen):
+        if isinstance(pen, QColor):
+            self._pen = QPen(pen)
+        else:
+            self._pen = pen
+    def setBrush(self, brush):
+        if isinstance(brush, QColor):
+            self._brush = QBrush(brush)
+        else:
+            self._brush = brush
     def setFont(self, font): self._font = font
     def setTransform(self, transform): self._transform = transform
     def transform(self): return self._transform
     def translate(self, dx, dy): self._transform.translate(dx, dy)
     def scale(self, sx, sy): self._transform.scale(sx, sy)
     def rotate(self, angle): self._transform.rotate(angle)
+    def fillRect(self, rect, color):
+        if not self._device: return
+        # Handle color or brush
+        fill_color = color.to_pygame() if hasattr(color, 'to_pygame') else color
+        if isinstance(fill_color, QColor): fill_color = fill_color.to_pygame()
+        
+        # Access coordinates safely
+        x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
+        y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
+        w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
+        h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
+        
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+        
+        nx, ny = int(x * sx + tx), int(y * sy + ty)
+        nw, nh = int(w * sx), int(h * sy)
+        r = pygame.Rect(nx, ny, nw, nh)
+        
+        pygame.draw.rect(self._device, fill_color, r)
+
+    def strokeRect(self, rect, color, width=1):
+        # Helper for common Qt-like tasks if needed
+        pass
+
     def drawRect(self, rect):
         if not self._device: return
         # Access coordinates safely
@@ -212,15 +245,17 @@ class QPainter:
                 r = rect.toRect() if hasattr(rect, 'toRect') else rect
                 
                 # Alignment logic
-                tx, ty = r.x(), r.y()
+                tx = r.x() if hasattr(r, 'x') and callable(r.x) else getattr(r, 'x', 0)
+                ty = r.y() if hasattr(r, 'y') and callable(r.y) else getattr(r, 'y', 0)
+                rw = r.width() if hasattr(r, 'width') and callable(r.width) else getattr(r, 'width', 0)
+                rh = r.height() if hasattr(r, 'height') and callable(r.height) else getattr(r, 'height', 0)
                 tw, th = surface.get_size()
-                rw, rh = r.width(), r.height()
                 
-                if flags & Qt.AlignmentFlag.AlignRight: tx = r.x() + rw - tw
-                elif flags & Qt.AlignmentFlag.AlignHCenter: tx = r.x() + (rw - tw) // 2
+                if flags & Qt.AlignmentFlag.AlignRight: tx = tx + rw - tw
+                elif flags & Qt.AlignmentFlag.AlignHCenter: tx = tx + (rw - tw) // 2
                 
-                if flags & Qt.AlignmentFlag.AlignBottom: ty = r.y() + rh - th
-                elif flags & Qt.AlignmentFlag.AlignVCenter: ty = r.y() + (rh - th) // 2
+                if flags & Qt.AlignmentFlag.AlignBottom: ty = ty + rh - th
+                elif flags & Qt.AlignmentFlag.AlignVCenter: ty = ty + (rh - th) // 2
                 
                 p = self._transform.map(QPointF(tx, ty))
                 self._device.blit(surface, (p.x(), p.y()))

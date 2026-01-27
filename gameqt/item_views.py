@@ -1,7 +1,8 @@
 import pygame
-from .core import QObject, Signal, Qt
+from .core import QObject, Signal, Qt, QSize, QRect
 from .widgets import QWidget
 from .application import QApplication
+from .gui import QColor, QPen
 
 class QAbstractItemModel(QObject):
     def __init__(self, parent=None):
@@ -52,11 +53,61 @@ class QStyleOptionViewItem:
 class QStyledItemDelegate(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
+        
     def paint(self, painter, option, index):
-        # Basic text painting
-        text = index.data()
-        if text:
-            painter.drawText(option.rect.x, option.rect.y, str(text))
+        if not index: return
+        
+        # State
+        is_selected = option.state & Qt.ItemFlag.ItemIsSelected if hasattr(option, 'state') else False
+        is_focused = option.state & Qt.ItemFlag.ItemIsFocused if hasattr(option, 'state') else False
+        
+        # Draw selection background
+        if is_selected:
+            painter.fillRect(option.rect, QColor(0, 120, 215)) # Standard blue selection
+        
+        # Get Icon
+        icon_val = index.data(Qt.ItemDataRole.DecorationRole)
+        icon_w = 0
+        if icon_val:
+            # icon_val could be QPixmap or QIcon
+            pix = icon_val.pixmap if hasattr(icon_val, 'pixmap') else icon_val
+            if hasattr(pix, 'surface') and pix.surface:
+                icon_h = option.rect.height - 4
+                # Scale if needed? Defaulting to small icons
+                scaled_pix = pix
+                if pix.height() > icon_h:
+                    from .gui import QPixmap
+                    scaled_pix = pix.scaledToWidth(int(pix.width() * (icon_h / pix.height())))
+                
+                painter.drawPixmap(option.rect.x + 2, option.rect.y + (option.rect.height - scaled_pix.height()) // 2, scaled_pix)
+                icon_w = scaled_pix.width() + 5
+
+        # Get Text
+        text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+        
+        # Text Color
+        text_color = QColor(255, 255, 255) if is_selected else QColor(0, 0, 0)
+        painter.setPen(text_color)
+        
+        # Alignment
+        align = option.displayAlignment if hasattr(option, 'displayAlignment') else Qt.AlignmentFlag.AlignLeft
+        
+        # Draw Text with alignment
+        rect = pygame.Rect(option.rect.x + icon_w, option.rect.y, option.rect.width - icon_w, option.rect.height)
+        painter.drawText(rect, align, text)
+        
+        # Focus Rect
+        if is_focused:
+            from .gui import QPen
+            pen = QPen(QColor(100, 100, 100))
+            pen.setStyle(Qt.PenStyle.DotLine)
+            painter.setPen(pen)
+            painter.drawRect(option.rect)
+            
+    def sizeHint(self, option, index):
+        # Basic size hint based on text
+        text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+        return QSize(100, 30) # Default/Fallback
 
 class QTreeWidget(QAbstractItemView):
     def __init__(self, parent=None):
@@ -164,6 +215,9 @@ class QTreeWidget(QAbstractItemView):
         screen = self._get_screen()
         if not screen: return
         
+        from .gui import QPainter, QColor
+        painter = QPainter(screen)
+        
         font = pygame.font.SysFont("Arial", 12)
         header_h = 25
         item_h = 22
@@ -182,46 +236,95 @@ class QTreeWidget(QAbstractItemView):
                 pygame.draw.line(screen, (200, 200, 205), (pos.x + i * col_w, pos.y + 2), (pos.x + i * col_w, pos.y + header_h - 2))
 
         # Items
-        curr_y = pos.y + header_h
+        curr_y = pos.y + header_h - getattr(self, '_scroll_y', 0)
         
+        # Clip body
+        old_clip = screen.get_clip()
+        body_rect = pygame.Rect(pos.x, pos.y + header_h, self._rect.width, self._rect.height - header_h)
+        screen.set_clip(body_rect)
+
+        # Helper for index
+        class MockIndex:
+            def __init__(self, item, col): self._item, self._col = item, col
+            def data(self, role=Qt.ItemDataRole.DisplayRole): 
+                if role == Qt.ItemDataRole.DisplayRole:
+                    return self._item.text(self._col)
+                return self._item.data(self._col, role)
+            def row(self): return 0 # stub
+            def column(self): return self._col
+
         # Recursive draw for tree
         def draw_item(item, level, y_offset):
             nonlocal curr_y
+            
+            # Visibility culling
+            if curr_y + item_h < pos.y + header_h:
+                if getattr(item, '_expanded', True):
+                    curr_y += item_h 
+                    for i in range(item.childCount()):
+                        draw_item(item.child(i), level + 1, y_offset)
+                    curr_y -= item_h
+                curr_y += item_h
+                return
+
             if curr_y > pos.y + self._rect.height: return
             
-            # Selection
-            if getattr(item, '_selected', False):
-                pygame.draw.rect(screen, (0, 120, 215), (pos.x + 1, curr_y, self._rect.width - 2, item_h))
-                text_color = (255, 255, 255)
-            else:
-                text_color = (30, 30, 30)
-                if (curr_y - pos.y - header_h) // item_h % 2 == 1:
-                    pygame.draw.rect(screen, (245, 245, 250), (pos.x + 1, curr_y, self._rect.width - 2, item_h))
+            is_selected = getattr(item, '_selected', False)
             
             # Draw Columns
             indent = level * 15
-            # Column 0: Text with "tree" indicator
-            txt = font.render(item.text(0), True, text_color)
-            screen.blit(txt, (pos.x + 5 + indent, curr_y + (item_h - txt.get_height()) // 2))
             
-            # Other columns
-            for c in range(1, len(labels)):
+            for c, _ in enumerate(labels):
                 col_w = self._header.sectionSize(c, self._rect.width, len(labels))
-                val = item.text(c)
-                if not val: continue
-                txt = font.render(str(val), True, text_color)
-                screen.blit(txt, (pos.x + c * col_w + 5, curr_y + (item_h - txt.get_height()) // 2))
+                col_x = pos.x + c * col_w
                 
+                # Rect for this cell
+                cell_rect = pygame.Rect(col_x, curr_y, col_w, item_h)
+                
+                # Delegate?
+                delegate = self._delegates.get(c) if hasattr(self, '_delegates') else None
+                
+                if delegate:
+                    option = QStyleOptionViewItem()
+                    option.rect = cell_rect
+                    option.state = Qt.ItemFlag.ItemIsSelected if is_selected else 0
+                    if is_selected: option.state |= Qt.ItemFlag.ItemIsSelected
+                    
+                    index = MockIndex(item, c)
+                    delegate.paint(painter, option, index)
+                else:
+                    # Default drawing - Inline implementation
+                    if is_selected:
+                        pygame.draw.rect(screen, (0, 120, 215), cell_rect)
+                        text_color = (255, 255, 255)
+                    else:
+                        text_color = (30, 30, 30)
+                        if (curr_y - pos.y - header_h) // item_h % 2 == 1:
+                            pass # Alternating logic handled per row, simplifying here
+                            # Or we can draw row background if c == 0
+                    
+                    # Manual alternation
+                    if not is_selected and (curr_y - pos.y - header_h) // item_h % 2 == 1:
+                         pygame.draw.rect(screen, (245, 245, 250), cell_rect)
+
+                    txt_val = item.text(c)
+                    if txt_val:
+                        txt_surf = font.render(str(txt_val), True, text_color)
+                        # Indent only for col 0
+                        x_off = 5 + indent if c == 0 else 5
+                        screen.blit(txt_surf, (col_x + x_off, curr_y + (item_h - txt_surf.get_height()) // 2))
+
             curr_y += item_h
             
             if getattr(item, '_expanded', True):
                 for i in range(item.childCount()):
                     draw_item(item.child(i), level + 1, y_offset)
 
-        # We need to iterate top level items
-        # Root item children are top level
+        # Iterate roots
         for i in range(self._root.childCount()):
             draw_item(self._root.child(i), 0, 0)
+            
+        screen.set_clip(old_clip)
 
     def itemAt(self, *args):
         # handle point or x,y
@@ -280,6 +383,7 @@ class QTreeWidgetItem:
     def setText(self, c, t): self._text[c] = t
     def addChild(self, i): self._children.append(i); i._parent = self
     def insertChild(self, index, i): self._children.insert(index, i); i._parent = self
+    def setIcon(self, column, icon): self._data[(column, Qt.ItemDataRole.DecorationRole)] = icon
     def removeChild(self, i): 
         if i in self._children: self._children.remove(i); i._parent = None
     def takeChild(self, index):

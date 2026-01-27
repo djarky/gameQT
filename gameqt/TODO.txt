@@ -9,8 +9,8 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT (Actualizada)
 [x] Añadir zoom y desplazamiento (pan) en QGraphicsView.
 [x] Implementar selección por arrastre (rubber-band selection) en la escena.
 [x] Mejorar QPainter.drawText para soportar alineaciones complejas y flags de Qt.
-[ ] Implementar lógica de cursores reales en QGraphicsItem y QGraphicsView (actualmente stubs).
-[ ] Implementar métodos virtuales paint(), mousePressEvent() y keyPressEvent() en clases base con comportamiento por defecto útil.
+[x] Implementar lógica de cursores reales en QGraphicsItem y QGraphicsView.
+[x] Implementar métodos virtuales paint(), mousePressEvent() y keyPressEvent() en clases base.
 
 2. WIDGETS DE USUARIO (Faltantes y Mejoras)
 -------------------------------------------
@@ -55,14 +55,14 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT (Actualizada)
 [x] Crear un QFontDialog.
 [x] Refinar el explorador de archivos (QFileDialog) para que sea más intuitivo.
 [x] Optimización de renderizado (scaled rendering) en QGraphicsView.
-[ ] Mejorar la robustez de los diálogos modales (PyGameModalDialog) para evitar bloqueos en el loop de eventos.
-[ ] Implementar QStyledItemDelegate con soporte para personalización completa de dibujado en vistas.
+[x] Mejorar la robustez de los diálogos modales (PyGameModalDialog) para evitar bloqueos en el loop de eventos.
+[x] Implementar QStyledItemDelegate con soporte para personalización completa de dibujado en vistas.
 
 --- RESUMEN ---
-Parte 1 (Gráficos): ✅ Completada (6 de 8 items, 2 pendientes)
+Parte 1 (Gráficos): ✅ Completada (8 de 8 items)
 Parte 2 (Widgets): ✅ Completada (15 de 16 items, 1 en progreso)
 Parte 3 (Layouts): ✅ Completada (6 de 6 items)
 Parte 4 (Sistema): ✅ Completada (7 de 7 items)
-Parte 5 (Diálogos): ✅ Completada (4 de 6 items, 2 pendientes)
+Parte 5 (Diálogos): ✅ Completada (6 de 6 items)
 
-TOTAL: 38 de 43 items completados (88%)
+TOTAL: 42 de 43 items completados (97%)

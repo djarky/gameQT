@@ -30,8 +30,13 @@ class QVBoxLayout:
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
-        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s})()
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s, 'size': 0})()
         self.items.append(spacer)
+    def addSpacing(self, size):
+        # Add a fixed size spacer
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': 0, 'size': size})()
+        self.items.append(spacer)
+
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
     def arrange(self, rect):
@@ -52,7 +57,8 @@ class QVBoxLayout:
             elif class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'): 
                 fixed_h += 35  # Slightly taller default
             elif class_name == 'Spacer':
-                if getattr(item, 'stretch', 0) == 0: fixed_h += 15
+                if getattr(item, 'stretch', 0) == 0: 
+                    fixed_h += getattr(item, 'size', 15)
                 else: expandable_count += item.stretch
             else: expandable_count += 1
         
@@ -74,7 +80,7 @@ class QVBoxLayout:
             elif class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0:
                 h = int(item_h * item.stretch)
             elif class_name == 'Spacer':
-                h = 15
+                h = getattr(item, 'size', 15)
             else:
                 h = int(item_h) if item_h > 0 else 50
             
@@ -135,8 +141,13 @@ class QHBoxLayout:
         if hasattr(i, '_set_parent'): i._set_parent(self._parent)
     def addStretch(self, s=0): 
         # Add a stretchable spacer
-        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s})()
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s, 'size': 0})()
         self.items.append(spacer)
+    def addSpacing(self, size):
+        # Add a fixed size spacer
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': 0, 'size': size})()
+        self.items.append(spacer)
+
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
     def arrange(self, rect):
@@ -155,7 +166,8 @@ class QHBoxLayout:
                  w = font.size(_get_text(item))[0] + 20
                  fixed_w += w
             elif class_name == 'Spacer':
-                if getattr(item, 'stretch', 0) == 0: fixed_w += 10
+                if getattr(item, 'stretch', 0) == 0: 
+                    fixed_w += getattr(item, 'size', 10)
                 else: expandable_count += item.stretch
             else: expandable_count += 1
             
@@ -173,7 +185,7 @@ class QHBoxLayout:
                 font = pygame.font.SysFont(None, 18)
                 w = font.size(_get_text(item))[0] + 20
             elif class_name == 'Spacer':
-                w = int(unit_w * item.stretch) if item.stretch > 0 else 10
+                w = int(unit_w * item.stretch) if item.stretch > 0 else getattr(item, 'size', 10)
                 
             y = rect.y + margins[1]
             h = content_h

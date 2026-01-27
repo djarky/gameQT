@@ -42,15 +42,23 @@ class Qt:
         ForegroundRole = 9
         CheckStateRole = 10
         UserRole = 1000
+    class ItemFlag:
+        NoItemFlags = 0
+        ItemIsSelectable = 1
+        ItemIsSelected = 1 # Alias
+        ItemIsEditable = 2
+        ItemIsDragEnabled = 4
+        ItemIsDropEnabled = 8
+        ItemIsUserCheckable = 16
+        ItemIsEnabled = 32
+        ItemIsTristate = 64
+        ItemNeverHasChildren = 128
+        ItemIsFocused = 256
     class CheckState: Checked = 2; Unchecked = 0
     class PenStyle: SolidLine = 1; DashLine = 2
     class BrushStyle: SolidPattern = 1; NoBrush = 0
     class TextInteractionFlag: NoTextInteraction = 0; TextEditorInteraction = 1
-    class ContextMenuPolicy: CustomContextMenu = 1
-    class ItemFlag: ItemIsEditable = 1
-    class ContextMenuPolicy: CustomContextMenu = 1
-    class ItemFlag: ItemIsEditable = 1
-    class ItemFlag: ItemIsEditable = 1
+    class ContextMenuPolicy: CustomContextMenu = 1; PreventContextMenu = 0; DefaultContextMenu = 2
     class TextFormat: PlainText = 0; RichText = 1
     class GlobalColor:
         white = "#FFFFFF"
@@ -338,32 +346,58 @@ class PyGameModalDialog:
         clock = pygame.time.Clock()
         self.running = True
         
-        while self.running:
-            # Event Loop
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    self.running = False
-                    self.result = None
-                elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-                    # Handle mouse interaction with dialog elements
-                    self.handle_event(event) # Custom handler
-                elif event.type == pygame.KEYDOWN:
-                    self.handle_key(event)
-            
-            # Draw
-            screen.blit(bg, (0, 0))
-            
-            # Dim background
-            overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 100))
-            screen.blit(overlay, (0, 0))
-            
-            # Draw Dialog
-            self.draw(screen)
-            
-            pygame.display.flip()
-            clock.tick(60)
+        try:
+            while self.running:
+                # Event Loop
+                events = pygame.event.get()
+                for event in events:
+                    if event.type == pygame.QUIT:
+                        self.running = False
+                        self.result = None
+                    elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+                        # Handle mouse interaction with dialog elements
+                        try:
+                            self.handle_event(event) # Custom handler
+                        except Exception as e:
+                            print(f"Error handling dialog event: {e}")
+                    elif event.type == pygame.KEYDOWN:
+                        self.handle_key(event)
+                    elif event.type == pygame.VIDEORESIZE:
+                        # Update background capture if resized
+                        from .application import QApplication
+                        if QApplication._instance:
+                            for win in QApplication._instance._windows:
+                                from .widgets import QMainWindow
+                                if isinstance(win, QMainWindow):
+                                    win.resize(event.w, event.h)
+                                    win._screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                            # Re-capture background so it doesn't look stretched/empty
+                            bg = pygame.display.get_surface().copy()
+                            sw, sh = event.w, event.h
+                            self.rect.center = (sw // 2, sh // 2)
+                
+                # Draw
+                screen.blit(bg, (0, 0))
+                
+                # Dim background
+                overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 100))
+                screen.blit(overlay, (0, 0))
+                
+                # Draw Dialog
+                try:
+                    self.draw(screen)
+                except Exception as e:
+                    print(f"Error drawing dialog: {e}")
+                    # If drawing fails, we might want to stop to avoid log spam/freeze
+                    # self.running = False 
+                
+                pygame.display.flip()
+                clock.tick(60)
+        except Exception as e:
+            print(f"Critical error in dialog execution: {e}")
+        finally:
+            self.running = False
             
         return self.result
 
