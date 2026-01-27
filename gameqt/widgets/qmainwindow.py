@@ -9,10 +9,8 @@ class QMainWindow(QWidget):
         if QApplication._instance: QApplication._instance._windows.append(self)
     def show(self):
         super().show()
-        if not self._screen:
-            self._screen = pygame.display.set_mode((self._rect.width, self._rect.height), pygame.RESIZABLE)
-            if hasattr(QApplication.instance(), '_app_name'):
-                pygame.display.set_caption(QApplication.instance()._app_name)
+        if self._screen and hasattr(QApplication.instance(), '_app_name'):
+             pygame.display.set_caption(QApplication.instance()._app_name)
     def setMenuBar(self, menu_bar):
         self._menu_bar = menu_bar
         menu_bar._set_parent(self); menu_bar.show()
@@ -49,7 +47,6 @@ class QMainWindow(QWidget):
         
         # Draw menu bar LAST so dropdowns appear on top
         if self._menu_bar: self._menu_bar._draw_recursive(my_pos)
-    def show(self):
-        super().show()
-        if not self._screen: self._screen = pygame.display.set_mode((self._rect.width, self._rect.height), pygame.RESIZABLE)
-    def _draw(self, pos): (self._screen.fill((230, 230, 235)) if self._screen else None)
+    def _draw(self, pos):
+        screen = self._screen or (self.window()._screen if self.window() else None)
+        if screen: screen.fill((230, 230, 235))

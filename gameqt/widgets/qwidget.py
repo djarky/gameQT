@@ -6,7 +6,7 @@ from ..application import QApplication
 
 class QWidget(QObject):
     def __init__(self, parent=None):
-        super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet = pygame.Rect(0, 0, 100, 100), False, None, ""
+        super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet, self._screen = pygame.Rect(0, 0, 100, 100), False, None, "", None
         self._parent, self._children = parent, []
         # QObject.__init__ (via super()) already handles parent enrollment if it's a QObject
         # But we double check and initialize signals here if needed
@@ -32,6 +32,10 @@ class QWidget(QObject):
         try: pygame.mouse.set_cursor(cursor)
         except: pass
     def viewport(self): return self # Fallback
+    def window(self):
+        curr = self
+        while curr._parent: curr = curr._parent
+        return curr
     def mapToGlobal(self, p):
         # Simplistic: just add widget absolute position
         # We need to find absolute position
@@ -58,6 +62,8 @@ class QWidget(QObject):
                 self._styles[k.strip().lower()] = v.strip().lower()
     def show(self):
         self._visible = True
+        if not self._parent and not self._screen:
+            self._screen = pygame.display.set_mode((self._rect.width, self._rect.height), pygame.RESIZABLE)
         for child in self._children:
             from ..menus import QMenu
             if hasattr(child, 'show') and not isinstance(child, QMenu): child.show()
@@ -182,8 +188,10 @@ class QWidget(QObject):
         self._draw(my_pos)
         for child in self._children: child._draw_recursive(my_pos)
     def _draw(self, pos):
-        if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        if not QApplication._instance: return
+        win = self.window()
+        screen = getattr(win, '_screen', None)
+        if not screen and QApplication._instance._windows: screen = getattr(QApplication._instance._windows[0], '_screen', None)
         if screen and self.__class__.__name__ != 'QMainWindow':
             color = (220, 220, 225)
             class_name = self.__class__.__name__

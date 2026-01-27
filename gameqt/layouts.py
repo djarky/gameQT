@@ -14,7 +14,10 @@ class QVBoxLayout:
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
     def addWidget(self, w, alignment=0):
         w._layout_alignment = alignment
-        self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
+        self.items.append(w)
+        if self._parent:
+            w._set_parent(self._parent)
+            if self._parent.isVisible(): w.show()
     def _set_parent(self, p):
         self._parent = p
         for item in self.items:
@@ -89,7 +92,7 @@ class QVBoxLayout:
             
             # Pass relative rect to nested layouts
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
-            elif hasattr(item, 'arrange'): item.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
+            elif hasattr(item, 'arrange'): item.arrange(item_rect)
             
             curr_y += h + spacing
 
@@ -99,7 +102,10 @@ class QHBoxLayout:
         if parent and hasattr(parent, 'setLayout'): parent.setLayout(self)
     def addWidget(self, w, alignment=0):
         w._layout_alignment = alignment
-        self.items.append(w); (w._set_parent(self._parent) if self._parent else None)
+        self.items.append(w)
+        if self._parent:
+            w._set_parent(self._parent)
+            if self._parent.isVisible(): w.show()
     def _set_parent(self, p):
         self._parent = p
         for item in self.items:
@@ -160,7 +166,7 @@ class QHBoxLayout:
             item._rect = item_rect
             # Pass relative rect to nested layouts
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
-            elif hasattr(item, 'arrange'): item.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
+            elif hasattr(item, 'arrange'): item.arrange(item_rect)
             
             curr_x += w + spacing
 
@@ -174,7 +180,9 @@ class QGridLayout:
     def addWidget(self, w, row, col, rowSpan=1, colSpan=1, alignment=0):
         w._layout_alignment = alignment
         self.items[(row, col)] = {'widget': w, 'rs': rowSpan, 'cs': colSpan}
-        if self._parent: w._set_parent(self._parent)
+        if self._parent:
+            w._set_parent(self._parent)
+            if self._parent.isVisible(): w.show()
     def _set_parent(self, p):
         self._parent = p
         for info in self.items.values():
@@ -215,7 +223,7 @@ class QGridLayout:
             w._rect = item_rect
             
             if hasattr(w, '_layout') and w._layout: w._layout.arrange(pygame.Rect(0, 0, width, height))
-            elif hasattr(w, 'arrange'): w.arrange(pygame.Rect(0, 0, width, height))
+            elif hasattr(w, 'arrange'): w.arrange(item_rect)
 
 class QStackedLayout:
     def __init__(self, parent=None):
@@ -243,7 +251,7 @@ class QStackedLayout:
             w = self.items[self._current_index]
             w._rect = rect
             if hasattr(w, '_layout') and w._layout: w._layout.arrange(pygame.Rect(0, 0, rect.width, rect.height))
-            elif hasattr(w, 'arrange'): w.arrange(pygame.Rect(0, 0, rect.width, rect.height))
+            elif hasattr(w, 'arrange'): w.arrange(rect)
 
 class QFormLayout:
     def __init__(self, parent=None):
@@ -301,7 +309,7 @@ class QFormLayout:
                 field._rect = field_rect
                 if field.isVisible():
                     if hasattr(field, '_layout') and field._layout: field._layout.arrange(pygame.Rect(0, 0, field_rect.width, field_rect.height))
-                    elif hasattr(field, 'arrange'): field.arrange(pygame.Rect(0, 0, field_rect.width, field_rect.height))
+                    elif hasattr(field, 'arrange'): field.arrange(field_rect)
             
             curr_y += h + spacing
 

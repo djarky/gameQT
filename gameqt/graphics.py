@@ -201,8 +201,10 @@ class QGraphicsView(QWidget):
         sx, sy = self._view_transform._m[0], self._view_transform._m[4]
         return QPointF((p.x() - tx) / sx, (p.y() - ty) / sy)
     def _draw(self, pos):
-        if not QApplication._instance or not QApplication._instance._windows: return
-        screen = QApplication._instance._windows[0]._screen
+        if not QApplication._instance: return
+        win = self.window()
+        screen = getattr(win, '_screen', None)
+        if not screen and QApplication._instance._windows: screen = getattr(QApplication._instance._windows[0], '_screen', None)
         if self._scene and screen:
             # Viewport Background
             pygame.draw.rect(screen, (240, 240, 240), (pos.x, pos.y, self._rect.width, self._rect.height))
