@@ -2,17 +2,36 @@ import pygame
 from ..core import PyGameModalDialog
 
 class QFontDialog(PyGameModalDialog):
-    def __init__(self, initial=None, title="Select Font"):
+    def __init__(self, *args, **kwargs):
+        # Signature: QFontDialog(parent=None) or QFontDialog(initial, parent=None)
+        title = kwargs.get('title', "Select Font")
+        initial = None
+        
+        if len(args) > 0:
+            if hasattr(args[0], '_rect') or hasattr(args[0], 'rect'):
+                # First arg is likely a parent widget
+                parent = args[0]
+                if len(args) > 1: initial = args[1]
+            else:
+                initial = args[0]
+                
         super().__init__(title, 400, 350)
         self.fonts = pygame.font.get_fonts()[:20] # Limit for demo
         self.selected_font = self.fonts[0]
         self.size = 12
+        
+        if initial and hasattr(initial, 'family'):
+             self.selected_font = initial.family()
+             self.size = initial.pointSize()
     @staticmethod
     def getFont(initial=None, parent=None, title="Select Font"):
         dlg = QFontDialog(initial, title)
         res = dlg.exec_()
+        return dlg.selectedFont(), res
+
+    def selectedFont(self):
         from ..gui import QFont
-        return QFont(dlg.selected_font, dlg.size), res
+        return QFont(self.selected_font, self.size)
     def draw(self, screen):
         super().draw(screen)
         font = pygame.font.SysFont(None, 18)

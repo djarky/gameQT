@@ -2,10 +2,23 @@ import pygame
 from ..core import PyGameModalDialog
 
 class QColorDialog(PyGameModalDialog):
-    def __init__(self, initial=None, title="Select Color"):
+    def __init__(self, *args, **kwargs):
+        # Signature: QColorDialog(parent=None) or QColorDialog(initial, parent=None)
+        title = kwargs.get('title', "Select Color")
+        initial = None
+        
+        if len(args) > 0:
+            if hasattr(args[0], '_rect') or hasattr(args[0], 'rect'):
+                # First arg is likely a parent widget
+                parent = args[0]
+                if len(args) > 1: initial = args[1]
+            else:
+                initial = args[0]
+        
         super().__init__(title, 300, 250)
         from ..gui import QColor
         if initial is None: initial = QColor(255, 255, 255)
+        if not hasattr(initial, 'r'): initial = QColor(255, 255, 255)
         self.r = initial.r; self.g = initial.g; self.b = initial.b
     @staticmethod
     def getColor(initial=None, parent=None, title="Select Color"):
@@ -13,7 +26,11 @@ class QColorDialog(PyGameModalDialog):
         if initial is None: initial = QColor(255, 255, 255)
         dlg = QColorDialog(initial, title)
         res = dlg.exec_()
-        return QColor(dlg.r, dlg.g, dlg.b) if res else initial
+        return dlg.selectedColor() if res else initial
+
+    def selectedColor(self):
+        from ..gui import QColor
+        return QColor(self.r, self.g, self.b)
     def draw(self, screen):
         super().draw(screen)
         y = self.rect.y + 50
