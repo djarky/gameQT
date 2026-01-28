@@ -150,12 +150,14 @@ class QTextEdit(QWidget):
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self._plain_text += '\n'; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
                 self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
-            elif event.key == pygame.K_v and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            elif event.key == pygame.K_v and (event.mod & (pygame.KMOD_CTRL | pygame.KMOD_META)):
                 # Paste from clipboard if possible
                 try:
-                    pasted = pygame.scrap.get(pygame.SCRAP_TEXT).decode('utf-8').replace('\0', '')
-                    self._plain_text += pasted; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
-                    self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
+                    from ..application import QApplication
+                    pasted = QApplication.clipboard().text()
+                    if pasted:
+                        self._plain_text += pasted; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
+                        self._doc_lines = None # Force re-calculation in _draw
                 except: pass
             elif event.unicode and event.unicode.isprintable():
                 self._plain_text += event.unicode; self._lines = self._plain_text.split('\n'); self.textChanged.emit()
