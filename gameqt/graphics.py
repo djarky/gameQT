@@ -18,6 +18,7 @@ class QGraphicsScene(QObject):
     def removeItem(self, item): (self.items_list.remove(item), setattr(item, '_scene', None)) if item in self.items_list else None
     def items(self): return sorted(self.items_list, key=lambda i: i.zValue())
     def selectedItems(self): return [i for i in self.items_list if i._selected]
+    def clear(self): self.items_list = []; self.selectionChanged.emit()
     def clearSelection(self): [setattr(i, '_selected', False) for i in self.items_list]; self.selectionChanged.emit()
     def setBackgroundBrush(self, brush): self._bg_brush = brush
     def setSceneRect(self, rect): self._scene_rect = rect

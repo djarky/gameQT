@@ -18,6 +18,8 @@ class QVBoxLayout:
         if self._parent:
             w._set_parent(self._parent)
             if self._parent.isVisible(): w.show()
+    def removeWidget(self, w):
+        if w in self.items: self.items.remove(w)
     def _set_parent(self, p):
         self._parent = p
         for item in self.items:
@@ -129,6 +131,8 @@ class QHBoxLayout:
         if self._parent:
             w._set_parent(self._parent)
             if self._parent.isVisible(): w.show()
+    def removeWidget(self, w):
+        if w in self.items: self.items.remove(w)
     def _set_parent(self, p):
         self._parent = p
         for item in self.items:
@@ -247,7 +251,6 @@ class QGridLayout:
         if self._parent:
             w._set_parent(self._parent)
             if self._parent.isVisible(): w.show()
-            
     def addItem(self, item, row=None, col=None, rowSpan=1, colSpan=1):
         """Add item (widget or layout) at specified or auto-calculated position."""
         if row is None or col is None:
@@ -264,6 +267,10 @@ class QGridLayout:
             
         if hasattr(item, '_set_parent'): item._set_parent(self._parent)
         
+    def removeWidget(self, w):
+        to_del = [k for k, v in self.items.items() if v['widget'] == w]
+        for k in to_del: del self.items[k]
+
     def _set_parent(self, p):
         self._parent = p
         for info in self.items.values():
@@ -377,6 +384,9 @@ class QFormLayout:
             if label_widget: label_widget._set_parent(self._parent)
             if field: field._set_parent(self._parent)
             
+    def removeWidget(self, w):
+        self.rows = [(l, f) for l, f in self.rows if l != w and f != w]
+
     def _set_parent(self, p):
         self._parent = p
         for label, field in self.rows:

@@ -386,6 +386,8 @@ class QTextCursor:
              
     def selectionStart(self): return min(self._pos, self._anchor)
     def selectionEnd(self): return max(self._pos, self._anchor)
+    def clearSelection(self): self._anchor = self._pos
+    def hasSelection(self): return self._pos != self._anchor
     
     def selectedText(self): 
         # Needs reference to text. 
