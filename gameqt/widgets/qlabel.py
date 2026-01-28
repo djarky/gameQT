@@ -1,23 +1,23 @@
 import pygame
 import os
-from ..core import Qt
+from ..core import Qt, Signal
 from ..application import QApplication
 from .qwidget import QWidget
 
 class QLabel(QWidget):
     def __init__(self, text="", parent=None): 
-        super().__init__(parent); self._text = text
+        super().__init__(parent); self._text = str(text) if text is not None else ""
         self._alignment = Qt.AlignmentFlag.AlignCenter # Default? usually left but for about dialog it seems center
         self._margin = 0
         self._word_wrap = False
     def setText(self, text): 
-        self._text = text
+        self._text = str(text) if text is not None else ""
         self._calculate_natural_size()
     def text(self): return self._text
     def setAlignment(self, align): self._alignment = align
     def setMargin(self, m): self._margin = m
     def setWordWrap(self, on): self._word_wrap = on
-    def setTextFormat(self, fmt): 
+    def setTextFormat(self, fmt):
         self._text_format = fmt
         self._calculate_natural_size()
     def setOpenExternalLinks(self, open): self._open_external_links = open

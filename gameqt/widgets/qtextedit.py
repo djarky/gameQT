@@ -23,7 +23,9 @@ class QTextEdit(QWidget):
         cursor._pos = self._cursor_pos
         return cursor
 
-    def setPlainText(self, t): self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit(); self._cursor_pos = len(t)
+    def setPlainText(self, t): 
+        t = str(t) if t is not None else ""
+        self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit(); self._cursor_pos = len(t)
     def toPlainText(self): return self._plain_text
     def setText(self, t): self.setPlainText(t)
     def setHtml(self, h): 

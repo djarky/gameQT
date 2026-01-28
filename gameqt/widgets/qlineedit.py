@@ -36,7 +36,7 @@ class QLineEdit(QWidget):
         screen.blit(txt, (pos.x + 5, pos.y + (self._rect.height - txt.get_height())//2))
         
         if self._focused and (pygame.time.get_ticks() // 500) % 2 == 0:
-            cursor_x = pos.x + 5 + font.size(self._text)[0]
+            cursor_x = pos.x + 5 + font.size(display_text)[0]
             pygame.draw.line(screen, (0, 0, 0), (cursor_x, pos.y + 5), (cursor_x, pos.y + self._rect.height - 5), 1)
     def mousePressEvent(self, ev):
         self._focused = True
