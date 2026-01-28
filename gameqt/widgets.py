@@ -1324,7 +1324,11 @@ class QColorDialog(PyGameModalDialog):
         if initial is None: initial = QColor(255, 255, 255)
         dlg = QColorDialog(initial, title)
         res = dlg.exec_()
-        return QColor(dlg.r, dlg.g, dlg.b) if res else initial
+        return dlg.selectedColor() if res else initial
+
+    def selectedColor(self):
+        from .gui import QColor
+        return QColor(self.r, self.g, self.b)
     def draw(self, screen):
         super().draw(screen)
         y = self.rect.y + 50
@@ -1372,8 +1376,11 @@ class QFontDialog(PyGameModalDialog):
     def getFont(initial=None, parent=None, title="Select Font"):
         dlg = QFontDialog(initial, title)
         res = dlg.exec_()
+        return dlg.selectedFont(), res
+
+    def selectedFont(self):
         from .gui import QFont
-        return QFont(dlg.selected_font, dlg.size), res
+        return QFont(self.selected_font, self.size)
     def draw(self, screen):
         super().draw(screen)
         font = pygame.font.SysFont(None, 18)
