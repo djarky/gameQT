@@ -26,6 +26,7 @@ class QTextEdit(QWidget):
     def setPlainText(self, t): 
         t = str(t) if t is not None else ""
         self._plain_text = t; self._lines = t.split('\n'); self.textChanged.emit(); self._cursor_pos = len(t)
+        self._doc_lines = None # Force re-calculation in _draw
     def toPlainText(self): return self._plain_text
     def setText(self, t): self.setPlainText(t)
     def setHtml(self, h): 

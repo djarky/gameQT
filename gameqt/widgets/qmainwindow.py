@@ -6,7 +6,6 @@ from .qwidget import QWidget
 class QMainWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self._screen = None; self._central_widget = None; self._menu_bar = None; self._status_bar = None
-        if QApplication._instance: QApplication._instance._windows.append(self)
     def show(self):
         super().show()
         if self._screen and hasattr(QApplication.instance(), '_app_name'):

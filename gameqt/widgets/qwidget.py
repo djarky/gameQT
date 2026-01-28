@@ -7,9 +7,9 @@ from ..application import QApplication
 class QWidget(QObject):
     def __init__(self, parent=None):
         super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet, self._screen = pygame.Rect(0, 0, 100, 100), False, None, "", None
-        self._parent, self._children = parent, []
-        # QObject.__init__ (via super()) already handles parent enrollment if it's a QObject
-        # But we double check and initialize signals here if needed
+        self._parent = None # Initialized by _set_parent
+        self._children = []
+        self._set_parent(parent)
         self.clicked = Signal(); self._accept_drops = False
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops

@@ -193,14 +193,27 @@ class QGraphicsTextItem(QGraphicsItem):
 class QGraphicsView(QWidget):
     class DragMode: RubberBandDrag = 1; NoDrag = 0
     class ViewportAnchor: AnchorUnderMouse = 1
-    def __init__(self, parent=None):
+    def __init__(self, *args):
+        # Support QGraphicsView(parent=None) AND QGraphicsView(scene, parent=None)
+        scene = None
+        parent = None
+        if len(args) > 0:
+            if isinstance(args[0], QGraphicsScene):
+                scene = args[0]
+                if len(args) > 1: parent = args[1]
+            else:
+                parent = args[0]
+        
         super().__init__(parent); self._scene = None; self.sceneChanged = Signal(); self.joinRequested = Signal()
+        if scene: self.setScene(scene)
+        
         self._view_transform = QTransform()
         self._drag_mode = QGraphicsView.DragMode.NoDrag
         self._rubber_band_rect = None
         self._is_panning = False
     def setScene(self, scene):
         if scene: self._scene = scene; scene._views.append(self)
+    def scene(self): return self._scene
     def viewport(self): return self
     def setRenderHint(self, h, on=True): 
         if not hasattr(self, '_render_hints'): self._render_hints = set()
