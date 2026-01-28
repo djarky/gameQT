@@ -134,6 +134,13 @@ class QObject:
     def _handle_event(self, event, offset):
         for child in self._children:
             child._handle_event(event, offset)
+    def _handle_drop_event(self, event, offset):
+        """Default drop event handler for QObjects"""
+        for child in self._children:
+            if hasattr(child, '_handle_drop_event'):
+                if child._handle_drop_event(event, offset):
+                    return True
+        return False
     def _draw_recursive(self, pos=pygame.Vector2(0,0)):
         if self.isVisible():
             for child in self._children:
