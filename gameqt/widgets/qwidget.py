@@ -23,6 +23,14 @@ class QWidget(QObject):
     def dropEvent(self, event): 
         # Default implementation: do nothing
         pass
+    def mousePressEvent(self, event):
+        pass
+    def mouseReleaseEvent(self, event):
+        pass
+    def mouseMoveEvent(self, event):
+        pass
+    def wheelEvent(self, event):
+        pass
     def setWindowTitle(self, title):
         self._window_title = title
         from .qmainwindow import QMainWindow
