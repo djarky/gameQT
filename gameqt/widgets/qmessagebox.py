@@ -23,6 +23,10 @@ class QMessageBox(PyGameModalDialog):
 
     def setText(self, text):
         self._text = text
+    
+    def setIcon(self, icon):
+        """Set the message box icon."""
+        self._icon = icon
 
     def setStandardButtons(self, buttons):
         self._buttons = buttons
