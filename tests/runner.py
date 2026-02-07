@@ -182,22 +182,40 @@ class TestRunner(QMainWindow):
         
         # Pass checkbox
         pass_chk = QCheckBox("✓ Pass", card)
-        pass_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px;")
+        pass_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px; color: #4CAF50;")
         pass_chk.show()
         layout.addWidget(pass_chk)
         
         # Fail checkbox
         fail_chk = QCheckBox("✗ Fail", card)
-        fail_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px;")
+        fail_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px; color: #F44336;")
         fail_chk.show()
         layout.addWidget(fail_chk)
+        
+        # Skip checkbox
+        skip_chk = QCheckBox("⊘ Skip", card)
+        skip_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px; color: #FF9800;")
+        skip_chk.show()
+        layout.addWidget(skip_chk)
+        
+        # Partial/Incomplete checkbox
+        partial_chk = QCheckBox("◐ Partial", card)
+        partial_chk.setStyleSheet("border: none; padding: 5px; font-size: 12px; color: #2196F3;")
+        partial_chk.show()
+        layout.addWidget(partial_chk)
 
-        # Logic to make them mutually exclusive
+        # Logic to make them mutually exclusive (4 states)
         def on_pass(s):
             if s == 2: # Checked
                 fail_chk.blockSignals(True)
+                skip_chk.blockSignals(True)
+                partial_chk.blockSignals(True)
                 fail_chk.setChecked(False)
+                skip_chk.setChecked(False)
+                partial_chk.setChecked(False)
                 fail_chk.blockSignals(False)
+                skip_chk.blockSignals(False)
+                partial_chk.blockSignals(False)
                 self.log_result(name, "PASS")
             else:
                 self.log_result(name, "RESET")
@@ -205,14 +223,52 @@ class TestRunner(QMainWindow):
         def on_fail(s):
             if s == 2: # Checked
                 pass_chk.blockSignals(True)
+                skip_chk.blockSignals(True)
+                partial_chk.blockSignals(True)
                 pass_chk.setChecked(False)
+                skip_chk.setChecked(False)
+                partial_chk.setChecked(False)
                 pass_chk.blockSignals(False)
+                skip_chk.blockSignals(False)
+                partial_chk.blockSignals(False)
                 self.log_result(name, "FAIL")
+            else:
+                self.log_result(name, "RESET")
+        
+        def on_skip(s):
+            if s == 2: # Checked
+                pass_chk.blockSignals(True)
+                fail_chk.blockSignals(True)
+                partial_chk.blockSignals(True)
+                pass_chk.setChecked(False)
+                fail_chk.setChecked(False)
+                partial_chk.setChecked(False)
+                pass_chk.blockSignals(False)
+                fail_chk.blockSignals(False)
+                partial_chk.blockSignals(False)
+                self.log_result(name, "SKIP")
+            else:
+                self.log_result(name, "RESET")
+        
+        def on_partial(s):
+            if s == 2: # Checked
+                pass_chk.blockSignals(True)
+                fail_chk.blockSignals(True)
+                skip_chk.blockSignals(True)
+                pass_chk.setChecked(False)
+                fail_chk.setChecked(False)
+                skip_chk.setChecked(False)
+                pass_chk.blockSignals(False)
+                fail_chk.blockSignals(False)
+                skip_chk.blockSignals(False)
+                self.log_result(name, "PARTIAL")
             else:
                 self.log_result(name, "RESET")
 
         pass_chk.stateChanged.connect(on_pass)
         fail_chk.stateChanged.connect(on_fail)
+        skip_chk.stateChanged.connect(on_skip)
+        partial_chk.stateChanged.connect(on_partial)
         
         card.show()
         return card
