@@ -22,28 +22,21 @@ class QScrollArea(QWidget):
     def setFrameShape(self, shape): self._frame_shape = shape
     
     def _get_content_height(self):
-        """Calculate the natural height of the scroll content based on layout items."""
+        """Calculate the natural height of the scroll content based on its sizeHint."""
         if not self._scroll_widget:
             return 0
         
-        layout = getattr(self._scroll_widget, '_layout', None)
-        if layout and hasattr(layout, 'items'):
-            visible = [i for i in layout.items if getattr(i, 'isVisible', lambda: True)()]
-            spacing = getattr(layout, '_spacing', 5)
-            margins = getattr(layout, '_margins', (0, 0, 0, 0))
-            
-            total_h = margins[1] + margins[3]
-            for item in visible:
-                rect = getattr(item, '_rect', None)
-                if rect and hasattr(rect, 'height') and rect.height > 0 and rect.height != 100:
-                    total_h += rect.height
-                else:
-                    total_h += 45  # Default card height
-                total_h += spacing
-            
-            return max(total_h, self._scroll_widget._rect.height)
+        # Now we can rely on sizeHint because we've updated it to be layout-aware 
+        # and to respect manual resizing via the _resized flag.
+        hint = self._scroll_widget.sizeHint()
         
-        return self._scroll_widget._rect.height
+        # Ensure we return at least the current widget height if it was explicitly set
+        if getattr(self._scroll_widget, '_resized', False):
+            val = max(hint.y(), self._scroll_widget._rect.height)
+        else:
+            val = hint.y()
+        
+        return val
     
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
@@ -135,6 +128,13 @@ class QScrollArea(QWidget):
                     scroll_delta = (dy / bar_move_range) * max_scroll
                     self._scroll_y = max(0, min(max_scroll, self._drag_start_scroll_y + scroll_delta))
                 return True
+            
+            # Change cursor if over scrollbar
+            mouse_pos = pygame.mouse.get_pos()
+            scrollbar_rect = pygame.Rect(my_pos.x + self._rect.width - 12, my_pos.y, 12, self._rect.height)
+            if scrollbar_rect.collidepoint(mouse_pos):
+                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                 # We don't return True here so underlying widgets still get motion if they need
 
         # Check if mouse is over this widget for wheel events
         mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)

@@ -6,6 +6,9 @@ class QPushButton(QWidget):
     def __init__(self, text="", parent=None): super().__init__(parent); self._text = text
     def setText(self, text): self._text = text
     def text(self): return self._text
+    def sizeHint(self):
+        from ..core import QPoint
+        return QPoint(100, 35)
     def _draw(self, pos):
         if not QApplication._instance or not QApplication._instance._windows: return
         screen = self._get_screen()

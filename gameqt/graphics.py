@@ -53,13 +53,20 @@ class QGraphicsItem:
         else: self._flags &= ~f
     def setFlags(self, f): self._flags = f
     def flags(self): return self._flags
-    def boundingRect(self): return QRectF(0, 0, 0, 0)
+    def boundingRect(self): 
+        """Must be implemented by subclasses to define the item's local coordinates."""
+        return QRectF(0, 0, 0, 0)
+    def collidesWithItem(self, other):
+        """Basic AABB collision check in scene coordinates."""
+        return self.sceneBoundingRect().intersects(other.sceneBoundingRect())
     def scene(self): return self._scene
     def setOpacity(self, o): self._opacity = o
     def opacity(self): return self._opacity
     def transform(self): return self._transform
     def setTransform(self, t, combine=False): self._transform = t
-    def scale(self): return 1.0
+    def scale(self): 
+        """Return the horizontal scale component of the transform."""
+        return self._transform._m[0]
     def rotation(self): return self._rotation
     def setRotation(self, r): self._rotation = r
     def update(self): 
@@ -88,7 +95,7 @@ class QGraphicsItem:
     def setFocus(self): 
         if self._scene: self._scene._focus_item = self
     def paint(self, painter, option, widget): 
-        # Virtual method to be overridden
+        """Virtual method to be overridden by subclasses to draw the item."""
         pass
     def mousePressEvent(self, event): 
         if self._flags & QGraphicsItem.GraphicsItemFlag.ItemIsSelectable:

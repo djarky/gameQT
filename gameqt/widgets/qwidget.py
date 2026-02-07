@@ -11,6 +11,7 @@ class QWidget(QObject):
         self._children = []
         self._set_parent(parent)
         self.clicked = Signal(); self._accept_drops = False
+        self._resized = False
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops
     def dragEnterEvent(self, event): 
@@ -25,9 +26,11 @@ class QWidget(QObject):
         if isinstance(self, QMainWindow): pygame.display.set_caption(title)
     def resize(self, w, h): 
         self._rect.width, self._rect.height = w, h
+        self._resized = True
         if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
     def setGeometry(self, x, y, w, h):
         self._rect = pygame.Rect(x, y, w, h)
+        self._resized = True
         if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
     def move(self, x, y): self._rect.x, self._rect.y = x, y
     def setMinimumSize(self, w, h): self._min_size = (w, h)
@@ -44,21 +47,28 @@ class QWidget(QObject):
         if not screen and QApplication._instance._windows: screen = getattr(QApplication._instance._windows[0], '_screen', None)
         return screen
     def mapToGlobal(self, p):
-        # Simplistic: just add widget absolute position
-        # We need to find absolute position
+        # Calculate absolute position by traversing parent hierarchy
         abs_x, abs_y = 0, 0
         curr = self
         while curr:
             abs_x += curr._rect.x
             abs_y += curr._rect.y
             curr = curr._parent
+        
+        # Use QPointF if available, otherwise fallback to QPoint
         try: from ..core import QPointF
-        except: from ..core import QPoint as QPointF
+        except ImportError: from ..core import QPoint as QPointF
+        
         pt = QPointF(p)
         return QPointF(abs_x + pt.x(), abs_y + pt.y())
     def setCentralWidget(self, widget):
         widget._set_parent(self); widget.show()
         widget._rect = pygame.Rect(0, 0, self._rect.width, self._rect.height)
+    def sizeHint(self):
+        """Returns the recommended size for the widget."""
+        if hasattr(self, '_layout') and self._layout:
+            return self._layout.sizeHint()
+        return QPoint(100, 30)
     def setStyleSheet(self, ss):
         self._stylesheet = ss
         # Basic parsing
@@ -67,6 +77,7 @@ class QWidget(QObject):
             if ':' in rule:
                 k, v = rule.split(':', 1)
                 self._styles[k.strip().lower()] = v.strip().lower()
+        # Trigger layout update if padding or margins changed (conceptual)
     def show(self):
         self._visible = True
         if not self._parent and not self._screen:
@@ -183,8 +194,10 @@ class QWidget(QObject):
             if mouse_rect.collidepoint(pygame.mouse.get_pos()):
                 from ..application import QDragEnterEvent, QDropEvent
                 if isinstance(event, QDragEnterEvent):
+                    event.ignore() # Default to ignored, subclass must accept
                     if hasattr(self, 'dragEnterEvent'): self.dragEnterEvent(event)
                 elif isinstance(event, QDropEvent):
+                    event.ignore() # Default to ignored
                     if hasattr(self, 'dropEvent'): self.dropEvent(event)
                 return event.isAccepted()
         return False
@@ -216,12 +229,31 @@ class QWidget(QObject):
         # Apply CSS-like styles if present
         if hasattr(self, '_styles'):
             from ..gui import QColor
+            radius = 0
+            if 'border-radius' in self._styles:
+                try: radius = int(self._styles['border-radius'].replace('px', ''))
+                except: pass
+                
+            padding = 0
+            if 'padding' in self._styles:
+                try: padding = int(self._styles['padding'].replace('px', ''))
+                except: pass
+
             if 'background-color' in self._styles:
-                try: pygame.draw.rect(screen, QColor(self._styles['background-color']).to_pygame(), (pos.x, pos.y, self._rect.width, self._rect.height))
+                try: 
+                    color = QColor(self._styles['background-color']).to_pygame()
+                    pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height), border_radius=radius)
                 except: pass
             if 'border' in self._styles:
-                # Simplistic border
-                pygame.draw.rect(screen, (100, 100, 100), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
+                # Simplistic border parsing
+                border_color = (100, 100, 100)
+                if 'solid' in self._styles['border']:
+                    # Try to find a color in the border string
+                    for c_name in QColor.NAMED_COLORS:
+                        if c_name in self._styles['border']:
+                            border_color = QColor.NAMED_COLORS[c_name]
+                            break
+                pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1, border_radius=radius)
     def statusBar(self):
         # In Qt, only QMainWindow has a statusBar. 
         # For compatibility in nested widgets, we can try to find the window.

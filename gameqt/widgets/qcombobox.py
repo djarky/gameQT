@@ -49,14 +49,28 @@ class QComboBox(QWidget):
         
         item_h = 25
         popup_h = len(self._items) * item_h
-        popup_rect = pygame.Rect(abs_pos.x(), abs_pos.y() + self._rect.height, self._rect.width, popup_h)
+        
+        # Check if popup fits below, otherwise show above
+        screen_h = screen.get_height()
+        if abs_pos.y() + self._rect.height + popup_h > screen_h and abs_pos.y() > popup_h:
+            popup_y = abs_pos.y() - popup_h
+        else:
+            popup_y = abs_pos.y() + self._rect.height
+            
+        popup_rect = pygame.Rect(abs_pos.x(), popup_y, self._rect.width, popup_h)
         pygame.draw.rect(screen, (245, 245, 250), popup_rect)
         pygame.draw.rect(screen, (150, 150, 150), popup_rect, 1)
+        
         font = pygame.font.SysFont(None, 18)
+        mouse_pos = pygame.mouse.get_pos()
+        
         for i, item in enumerate(self._items):
             iy = popup_rect.y + i * item_h
-            if pygame.Rect(popup_rect.x, iy, popup_rect.width, item_h).collidepoint(pygame.mouse.get_pos()):
-                pygame.draw.rect(screen, (200, 220, 255), (popup_rect.x+1, iy+1, popup_rect.width-2, item_h-2))
+            item_rect = pygame.Rect(popup_rect.x, iy, popup_rect.width, item_h)
+            
+            if item_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (200, 220, 255), (item_rect.x+1, iy+1, item_rect.width-2, item_h-2))
+            
             txt = font.render(item['text'], True, (20, 20, 20))
             screen.blit(txt, (popup_rect.x + 5, iy + (item_h - txt.get_height())//2))
 
@@ -86,27 +100,35 @@ class QComboBox(QWidget):
     def _handle_popup_event(self, event):
         if not self._popup_visible: return False
         
+        item_h = 25
+        abs_pos = self.mapToGlobal(pygame.Vector2(0,0))
+        popup_h = len(self._items) * item_h
+        
+        screen = self._get_screen()
+        screen_h = screen.get_height() if screen else 10000
+        
+        if abs_pos.y() + self._rect.height + popup_h > screen_h and abs_pos.y() > popup_h:
+            popup_y = abs_pos.y() - popup_h
+        else:
+            popup_y = abs_pos.y() + self._rect.height
+            
+        popup_rect = pygame.Rect(abs_pos.x(), popup_y, self._rect.width, popup_h)
+        
         if event.type == pygame.MOUSEBUTTONDOWN:
-            abs_pos = self.mapToGlobal(pygame.Vector2(0,0))
-            popup_rect = pygame.Rect(abs_pos.x(), abs_pos.y() + self._rect.height, self._rect.width, len(self._items) * 25)
             if popup_rect.collidepoint(pygame.mouse.get_pos()):
                 # Handle click inside popup
-                local_y = pygame.mouse.get_pos()[1] - (abs_pos.y() + self._rect.height)
-                index = int(local_y // 25)
+                local_y = pygame.mouse.get_pos()[1] - popup_rect.y
+                index = int(local_y // item_h)
                 self.setCurrentIndex(index)
                 self._hide_popup()
                 return True
             else:
-                # Clicked outside. Check if it's the combo itself (to toggle in mousePressEvent or here)
+                # Clicked outside. Check if it's the combo itself
                 combo_rect = pygame.Rect(abs_pos.x(), abs_pos.y(), self._rect.width, self._rect.height)
                 if not combo_rect.collidepoint(pygame.mouse.get_pos()):
                     self._hide_popup()
-                    # We return True to consume the event if we want "modal" behavior
                     return True
         elif event.type == pygame.MOUSEMOTION:
-             # Just consume motion if over popup to prevent underlying widgets from highlighting
-             abs_pos = self.mapToGlobal(pygame.Vector2(0,0))
-             popup_rect = pygame.Rect(abs_pos.x(), abs_pos.y() + self._rect.height, self._rect.width, len(self._items) * 25)
              if popup_rect.collidepoint(pygame.mouse.get_pos()):
                   return True
                   
