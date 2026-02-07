@@ -5,6 +5,9 @@ from .qwidget import QWidget
 
 class QLineEdit(QWidget):
     def __init__(self, contents="", parent=None):
+        if isinstance(contents, QWidget):
+            parent = contents
+            contents = ""
         super().__init__(parent)
         self._text = contents
         self._focused = False

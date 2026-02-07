@@ -3,31 +3,25 @@ from .core import QRectF, QSize, QPointF, Qt
 
 class QColor:
     NAMED_COLORS = {
-        'white': (255, 255, 255), 'black': (0, 0, 0), 'red': (255, 0, 0), 
-        'green': (0, 255, 0), 'blue': (0, 0, 255), 'gray': (128, 128, 128),
-        'lightgray': (211, 211, 211), 'darkgray': (169, 169, 169),
-        'yellow': (255, 255, 0), 'cyan': (0, 255, 255), 'magenta': (255, 0, 255),
+        'white': (255, 255, 255),
+        'black': (0, 0, 0),
+        'red': (255, 0, 0),
+        'green': (0, 255, 0),
+        'blue': (0, 0, 255),
+        'yellow': (255, 255, 0),
+        'cyan': (0, 255, 255),
+        'magenta': (255, 0, 255),
+        'gray': (128, 128, 128),
+        'darkgray': (64, 64, 64),
+        'lightgray': (192, 192, 192),
         'transparent': (0, 0, 0, 0)
     }
     def __init__(self, *args):
         if len(args) == 1:
             if isinstance(args[0], str):
-                s = args[0].lower().strip()
-                if s.startswith('#'):
-                    h = s.lstrip('#')
-                    if len(h) == 6: self.r, self.g, self.b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4)); self.a = 255
-                    elif len(h) == 8: self.r, self.g, self.b, self.a = tuple(int(h[i:i+2], 16) for i in (0, 2, 4, 6))
-                    else: self.r = self.g = self.b = self.a = 255
-                elif s in QColor.NAMED_COLORS:
-                    c = QColor.NAMED_COLORS[s]
-                    self.r, self.g, self.b = c[:3]; self.a = c[3] if len(c) > 3 else 255
-                elif s.startswith('rgb'):
-                    import re
-                    m = re.match(r'rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d\.]+)\s*)?\)', s)
-                    if m:
-                        self.r, self.g, self.b = int(m.group(1)), int(m.group(2)), int(m.group(3))
-                        self.a = int(float(m.group(4)) * 255) if m.group(4) else 255
-                    else: self.r = self.g = self.b = self.a = 255
+                h = args[0].lstrip('#')
+                if len(h) == 6: self.r, self.g, self.b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4)); self.a = 255
+                elif len(h) == 8: self.r, self.g, self.b, self.a = tuple(int(h[i:i+2], 16) for i in (0, 2, 4, 6))
                 else: self.r = self.g = self.b = self.a = 255
             elif isinstance(args[0], QColor): self.r, self.g, self.b, self.a = args[0].r, args[0].g, args[0].b, args[0].a
             else: self.r = self.g = self.b = self.a = 255
@@ -208,26 +202,6 @@ class QPainter:
         # Stroke
         if self._pen._style > 0:
             pygame.draw.rect(self._device, self._pen._color.to_pygame(), r, self._pen._width)
-    def drawRoundedRect(self, rect, x_radius, y_radius):
-        if not self._device: return
-        x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
-        y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
-        w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
-        h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
-        
-        tx, ty = self._transform._m[6], self._transform._m[7]
-        sx, sy = self._transform._m[0], self._transform._m[4]
-        
-        nx, ny = int(x * sx + tx), int(y * sy + ty)
-        nw, nh = int(w * sx), int(h * sy)
-        r = pygame.Rect(nx, ny, nw, nh)
-        
-        radius = int(max(x_radius, y_radius) * sx)
-        
-        if self._brush._style == 1:
-            pygame.draw.rect(self._device, self._brush._color.to_pygame(), r, border_radius=radius)
-        if self._pen._style > 0:
-            pygame.draw.rect(self._device, self._pen._color.to_pygame(), r, self._pen._width, border_radius=radius)
     def drawLine(self, *args):
         if not self._device: return
         p1, p2 = (args[0], args[1]) if len(args) == 2 else (QPointF(args[0], args[1]), QPointF(args[2], args[3]))

@@ -16,8 +16,8 @@ class QLabel(QWidget):
     def text(self): return self._text
     def sizeHint(self):
         if not hasattr(self, '_total_h'): self._calculate_natural_size()
-        from ..core import QPoint
-        return QPoint(self._rect.width, self._total_h)
+        from ..core import QSize
+        return QSize(self._rect.width, self._total_h)
     def setAlignment(self, align): self._alignment = align
     def setMargin(self, m): self._margin = m
     def setWordWrap(self, on): self._word_wrap = on

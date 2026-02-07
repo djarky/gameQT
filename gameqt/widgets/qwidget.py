@@ -1,7 +1,7 @@
 import pygame
 import os
 import sys
-from ..core import QObject, Signal, QMouseEvent, QWheelEvent, QPoint, Qt, PyGameModalDialog
+from ..core import QObject, Signal, QMouseEvent, QWheelEvent, QPoint, QSize, Qt, PyGameModalDialog
 from ..application import QApplication
 
 class QWidget(QObject):
@@ -68,7 +68,7 @@ class QWidget(QObject):
         """Returns the recommended size for the widget."""
         if hasattr(self, '_layout') and self._layout:
             return self._layout.sizeHint()
-        return QPoint(100, 30)
+        return QSize(100, 30)
     def setStyleSheet(self, ss):
         self._stylesheet = ss
         # Basic parsing

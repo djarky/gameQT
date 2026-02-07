@@ -8,20 +8,6 @@ def _get_text(item):
         return t() if callable(t) else str(t)
     return str(getattr(item, '_text', ''))
 
-def _get_item_size(item):
-    from .core import QPoint
-    # 1. Base size hint
-    sh = item.sizeHint() if hasattr(item, 'sizeHint') else QPoint(100, 35)
-    # 2. Check for explicit resize if it's a widget
-    if hasattr(item, '_resized') and item._resized:
-        return QPoint(max(sh.x(), item._rect.width), max(sh.y(), item._rect.height))
-    # 3. Handle Spacers
-    if item.__class__.__name__ == 'Spacer':
-         s = getattr(item, 'size', 15)
-         if getattr(item, 'stretch', 0) == 0: return QPoint(s, s)
-         return QPoint(0, 0)
-    return sh
-
 class QVBoxLayout:
     def __init__(self, parent=None):
         self.items, self._parent = [], parent
@@ -55,37 +41,28 @@ class QVBoxLayout:
 
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
-    def sizeHint(self):
-        visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
-        if not visible_items: from .core import QPoint; return QPoint(0, 0)
-        from .core import QPoint
-        margins = getattr(self, '_margins', (0,0,0,0))
-        spacing = getattr(self, '_spacing', 5)
-        total_h = margins[1] + margins[3]
-        max_w = 0
-        for i, item in enumerate(visible_items):
-            ish = _get_item_size(item)
-            total_h += ish.y()
-            if i < len(visible_items) - 1: total_h += spacing
-            max_w = max(max_w, ish.x())
-        return QPoint(max_w + margins[0] + margins[2], total_h)
     def arrange(self, rect):
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
         
         margins = getattr(self, '_margins', (0,0,0,0))
-        spacing = getattr(self, '_spacing', 5)
+        spacing = getattr(self, '_spacing', 5)  # Default spacing of 5
         
         fixed_h = 0
         expandable_count = 0
         for item in visible_items:
-            ish = _get_item_size(item)
-            if item.__class__.__name__ == 'Spacer' and getattr(item, 'stretch', 0) > 0:
-                expandable_count += item.stretch
-            elif not hasattr(item, 'sizeHint') and item.__class__.__name__ not in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
-                expandable_count += 1
-            else:
-                fixed_h += ish.y()
+            class_name = item.__class__.__name__
+            # Check if widget has explicit height set (more than default 100)
+            widget_h = getattr(item, '_rect', None)
+            if widget_h and hasattr(widget_h, 'height') and widget_h.height > 0 and widget_h.height != 100:
+                fixed_h += widget_h.height
+            elif class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'): 
+                fixed_h += 35  # Slightly taller default
+            elif class_name == 'Spacer':
+                if getattr(item, 'stretch', 0) == 0: 
+                    fixed_h += getattr(item, 'size', 15)
+                else: expandable_count += item.stretch
+            else: expandable_count += 1
         
         remaining_h = max(0, rect.height - margins[1] - margins[3] - fixed_h - (len(visible_items)-1)*spacing)
         item_h = remaining_h / expandable_count if expandable_count > 0 else 0
@@ -94,20 +71,39 @@ class QVBoxLayout:
         content_w = rect.width - margins[0] - margins[2]
         
         for item in visible_items:
-            ish = _get_item_size(item)
-            if item.__class__.__name__ == 'Spacer' and getattr(item, 'stretch', 0) > 0:
+            class_name = item.__class__.__name__
+            
+            # Determine height: use explicit height if set, otherwise defaults
+            widget_h = getattr(item, '_rect', None)
+            if widget_h and hasattr(widget_h, 'height') and widget_h.height > 0 and widget_h.height != 100:
+                h = widget_h.height
+            elif class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
+                h = 35
+            elif class_name == 'Spacer' and getattr(item, 'stretch', 0) > 0:
                 h = int(item_h * item.stretch)
-            elif not hasattr(item, 'sizeHint') and item.__class__.__name__ not in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
-                h = int(item_h) if item_h > 0 else 50
+            elif class_name == 'Spacer':
+                h = getattr(item, 'size', 15)
             else:
-                h = ish.y()
+                h = int(item_h) if item_h > 0 else 50
             
             x = rect.x + margins[0]
             w = content_w
             
             align = getattr(item, '_layout_alignment', 0)
+            # Horizontal alignment within the column
             if align & (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft):
-                w = min(content_w, ish.x())
+                # Try to get a reasonable width for aligned items
+                w = 150 # Default
+                if hasattr(item, 'sizeHint'): 
+                    sh = item.sizeHint()
+                    if sh: w = sh.width()
+                elif hasattr(item, 'text'):
+                    # Heuristic for labels/buttons
+                    font = pygame.font.SysFont(None, 18)
+                    w = font.size(_get_text(item))[0] + 20
+                
+                w = min(content_w, w)
+                
                 if align & Qt.AlignmentFlag.AlignRight:
                     x = rect.x + rect.width - margins[2] - w
                 elif align & Qt.AlignmentFlag.AlignHCenter:
@@ -115,10 +111,14 @@ class QVBoxLayout:
                 else: # AlignLeft
                     x = rect.x + margins[0]
             
+            # Use computed absolute rect for this item
             item_rect = pygame.Rect(x, curr_y, w, h)
             item._rect = item_rect
+            
+            # Pass relative rect to nested layouts
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
             elif hasattr(item, 'arrange'): item.arrange(item_rect)
+            
             curr_y += h + spacing
 
 class QHBoxLayout:
@@ -137,38 +137,43 @@ class QHBoxLayout:
         self._parent = p
         for item in self.items:
             if hasattr(item, '_set_parent'): item._set_parent(p)
+    def addLayout(self, l):
+        self.items.append(l); l._parent = self._parent
+        if self._parent and hasattr(l, '_set_parent'): l._set_parent(self._parent)
+    def addItem(self, i):
+        self.items.append(i)
+        if hasattr(i, '_set_parent'): i._set_parent(self._parent)
+    def addStretch(self, s=0): 
+        # Add a stretchable spacer
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': s, 'size': 0})()
+        self.items.append(spacer)
+    def addSpacing(self, size):
+        # Add a fixed size spacer
+        spacer = type('Spacer', (), {'isVisible': lambda self: True, 'stretch': 0, 'size': size})()
+        self.items.append(spacer)
+
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
-    def sizeHint(self):
-        visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
-        if not visible_items: from .core import QPoint; return QPoint(0, 0)
-        from .core import QPoint
-        margins = getattr(self, '_margins', (0,0,0,0))
-        spacing = getattr(self, '_spacing', 5)
-        total_w = margins[0] + margins[2]
-        max_h = 0
-        for i, item in enumerate(visible_items):
-            ish = _get_item_size(item)
-            total_w += ish.x()
-            if i < len(visible_items) - 1: total_w += spacing
-            max_h = max(max_h, ish.y())
-        return QPoint(total_w, max_h + margins[1] + margins[3])
     def arrange(self, rect):
         visible_items = [i for i in self.items if getattr(i, 'isVisible', lambda: True)()]
         if not visible_items: return
         margins = getattr(self, '_margins', (0,0,0,0))
         spacing = getattr(self, '_spacing', 0)
         
+        # Sizing heuristic
         fixed_w = 0
         expandable_count = 0
         for item in visible_items:
-            ish = _get_item_size(item)
-            if item.__class__.__name__ == 'Spacer' and getattr(item, 'stretch', 0) > 0:
-                expandable_count += item.stretch
-            elif not hasattr(item, 'sizeHint') and item.__class__.__name__ not in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
-                expandable_count += 1
-            else:
-                fixed_w += ish.x()
+            class_name = item.__class__.__name__
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'): 
+                 font = pygame.font.SysFont(None, 18)
+                 w = font.size(_get_text(item))[0] + 20
+                 fixed_w += w
+            elif class_name == 'Spacer':
+                if getattr(item, 'stretch', 0) == 0: 
+                    fixed_w += getattr(item, 'size', 10)
+                else: expandable_count += item.stretch
+            else: expandable_count += 1
             
         available_w = rect.width - margins[0] - margins[2]
         remaining_w = max(0, available_w - fixed_w - (len(visible_items)-1)*spacing)
@@ -178,21 +183,24 @@ class QHBoxLayout:
         content_h = rect.height - margins[1] - margins[3]
         
         for item in visible_items:
-            ish = _get_item_size(item)
-            if item.__class__.__name__ == 'Spacer' and getattr(item, 'stretch', 0) > 0:
-                w = int(unit_w * item.stretch)
-            elif not hasattr(item, 'sizeHint') and item.__class__.__name__ not in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox', 'QRadioButton', 'QComboBox', 'QSpinBox'):
-                w = int(unit_w) if unit_w > 0 else (available_w // len(visible_items))
-            else:
-                w = ish.x()
+            class_name = item.__class__.__name__
+            w = (int(unit_w) if expandable_count > 0 else (available_w // len(visible_items))) # fallback
+            if class_name in ('QPushButton', 'QLabel', 'QLineEdit', 'QCheckBox'):
+                font = pygame.font.SysFont(None, 18)
+                w = font.size(_get_text(item))[0] + 20
+            elif class_name == 'Spacer':
+                w = int(unit_w * item.stretch) if item.stretch > 0 else getattr(item, 'size', 10)
                 
             y = rect.y + margins[1]
             h = content_h
             
+            # Vertical alignment within the row (simple)
             item_rect = pygame.Rect(curr_x, y, w, h)
             item._rect = item_rect
+            # Pass relative rect to nested layouts
             if hasattr(item, '_layout') and item._layout: item._layout.arrange(pygame.Rect(0, 0, item_rect.width, item_rect.height))
             elif hasattr(item, 'arrange'): item.arrange(item_rect)
+            
             curr_x += w + spacing
 
 class QGridLayout:
@@ -387,17 +395,6 @@ class QFormLayout:
 
     def setContentsMargins(self, left, top, right, bottom): self._margins = (left, top, right, bottom)
     def setSpacing(self, s): self._spacing = s
-    def sizeHint(self):
-        if not self.rows: from .core import QPoint; return QPoint(0, 0)
-        from .core import QPoint
-        margins = getattr(self, '_margins', (10, 10, 10, 10))
-        spacing = getattr(self, '_spacing', 10)
-        total_h = margins[1] + margins[3]
-        for idx, (label, field) in enumerate(self.rows):
-            h = self._calculate_row_height(idx, label, field)
-            total_h += h
-            if idx < len(self.rows) - 1: total_h += spacing
-        return QPoint(self._label_width + 200, total_h) # 200 is default field width
 
     def _calculate_row_height(self, row_idx, label, field):
         """Calculate dynamic height based on content."""

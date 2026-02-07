@@ -98,6 +98,14 @@ class QTextEdit(QWidget):
         self._lines = self._plain_text.split('\n')
 
     def setReadOnly(self, b): self._read_only = b
+    def _layout_text(self):
+        if not hasattr(self, '_doc_lines') or not self._doc_lines:
+            self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]
+        
+        # Calculate content height for tests
+        line_height = 18
+        self._last_content_h = len(self._doc_lines) * line_height
+
     def _draw(self, pos):
         from ..application import QApplication
         if not QApplication._instance or not QApplication._instance._windows: return
