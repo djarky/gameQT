@@ -276,18 +276,24 @@ class QWidget(QObject):
             radius = 0
             if 'border-radius' in self._styles:
                 try: radius = int(self._styles['border-radius'].replace('px', ''))
-                except: pass
+                except (ValueError, AttributeError):  
+                    from ..error_handler import get_logger
+                    get_logger().debug("qwidget.QWidget", f"Failed to parse border-radius: {self._styles.get('border-radius')}")
                 
             padding = 0
             if 'padding' in self._styles:
                 try: padding = int(self._styles['padding'].replace('px', ''))
-                except: pass
+                except (ValueError, AttributeError):
+                    from ..error_handler import get_logger
+                    get_logger().debug("qwidget.QWidget", f"Failed to parse padding: {self._styles.get('padding')}")
 
             if 'background-color' in self._styles:
                 try: 
                     color = QColor(self._styles['background-color']).to_pygame()
                     pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height), border_radius=radius)
-                except: pass
+                except (ValueError, AttributeError, KeyError) as e:
+                    from ..error_handler import get_logger
+                    get_logger().debug("qwidget.QWidget", f"Failed to draw background-color: {e}")
             if 'border' in self._styles:
                 # Simplistic border parsing
                 border_color = (100, 100, 100)

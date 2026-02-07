@@ -389,7 +389,9 @@ class QKeySequence:
                 try: 
                     k_attr = f"K_{p.lower()}" if len(p) == 1 else f"K_{p}"
                     self._keys.append(getattr(pygame, k_attr))
-                except: pass
+                except AttributeError:
+                    from .error_handler import get_logger
+                    get_logger().debug("gui.QKeySequence", f"Unknown key sequence part: {p}")
     
     def matches(self, key, mods):
         # Simplistic check

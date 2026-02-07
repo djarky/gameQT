@@ -7,6 +7,15 @@ from .graphics import *
 from .item_views import *
 from .menus import *
 from .utils import *
+from .error_handler import (
+    GameQtError, 
+    GameQtNotImplementedError, 
+    GameQtExternalError,
+    GameQtInternalError,
+    ErrorCategory,
+    get_logger,
+    show_error_dialog
+)
 
 __all__ = [
     'Qt', 'Signal', 'QObject', 'QApplication', 'QWidget', 'QMainWindow', 'QDialog',
@@ -20,5 +29,8 @@ __all__ = [
     'QListWidgetItem', 'QTabWidget', 'QTextEdit', 'QUndoView', 'QScrollArea', 
     'QBuffer', 'QIODevice', 'QMimeData', 'QModelIndex', 'QPrinter', 
     'QKeySequence', 'QPointF', 'QPoint', 'QRectF', 'QSize', 'QPixmap', 'QImage', 
-    'QFont', 'QMouseEvent', 'QWheelEvent', 'QIcon', 'QDrag'
+    'QFont', 'QMouseEvent', 'QWheelEvent', 'QIcon', 'QDrag',
+    # Error handling
+    'GameQtError', 'GameQtNotImplementedError', 'GameQtExternalError', 
+    'GameQtInternalError', 'ErrorCategory', 'get_logger', 'show_error_dialog'
 ]

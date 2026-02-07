@@ -31,7 +31,9 @@ class QApplication:
         self._running = False
         try:
             if not pygame.scrap.get_init(): pygame.scrap.init()
-        except: pass
+        except Exception as e:
+            from .error_handler import get_logger
+            get_logger().info("application.QApplication", f"pygame.scrap not available: {e}")
 
     @staticmethod
     def clipboard(): return QApplication._clipboard
