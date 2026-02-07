@@ -25,16 +25,39 @@ class QLineEdit(QWidget):
     def text(self): return self._text
     def setPlaceholderText(self, text): self._placeholder = text
     def _draw(self, pos):
+        from ..gui import QColor
         screen = self._get_screen()
         if not screen: return
+        
+        bg_color_str = self._get_style_property('background-color')
         bg_color = (255, 255, 255)
-        border_color = (100, 150, 240) if self._focused else (180, 180, 180)
+        if bg_color_str:
+            try: bg_color = QColor(bg_color_str).to_pygame()
+            except: pass
+            
+        border_color = (180, 180, 180)
+        border_str = self._get_style_property('border')
+        if border_str:
+            parts = border_str.split()
+            for p in parts:
+                if p.startswith('#') or p in QColor.NAMED_COLORS:
+                    try: border_color = QColor(p).to_pygame()
+                    except: pass
+        if self._focused:
+            # Active/Focus border blue highlight if not overridden?
+            # Or use pseudo-state :focus if we want to be fancy.
+            pass
+            
         pygame.draw.rect(screen, bg_color, (pos.x, pos.y, self._rect.width, self._rect.height))
         pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1)
         font = pygame.font.SysFont(None, 18)
         
         display_text = str(self._text) if self._text else ""
+        text_color_str = self._get_style_property('color')
         text_color = (20, 20, 20)
+        if text_color_str:
+            try: text_color = QColor(text_color_str).to_pygame()
+            except: pass
         is_placeholder = False
         if not display_text and self._placeholder and not self._focused:
             display_text = str(self._placeholder)

@@ -38,8 +38,25 @@ class QStatusBar(QWidget):
         
     def _draw(self, pos):
         from ..application import QApplication
+        from ..gui import QColor
         screen = self._get_screen()
         if not screen: return
         
-        pygame.draw.rect(screen, (240, 240, 245), (pos.x, pos.y, self._rect.width, self._rect.height))
-        pygame.draw.line(screen, (180, 180, 190), (pos.x, pos.y), (pos.x + self._rect.width, pos.y))
+        bg_color_str = self._get_style_property('background-color')
+        bg_color = (240, 240, 245)
+        if bg_color_str:
+            try: bg_color = QColor(bg_color_str).to_pygame()
+            except: pass
+            
+        border_color = (180, 180, 190)
+        border_str = self._get_style_property('border-top')
+        if not border_str: border_str = self._get_style_property('border')
+        if border_str:
+             parts = border_str.split()
+             for p in parts:
+                 if p.startswith('#') or p in QColor.NAMED_COLORS:
+                     try: border_color = QColor(p).to_pygame()
+                     except: pass
+
+        pygame.draw.rect(screen, bg_color, (pos.x, pos.y, self._rect.width, self._rect.height))
+        pygame.draw.line(screen, border_color, (pos.x, pos.y), (pos.x + self._rect.width, pos.y))

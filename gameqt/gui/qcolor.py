@@ -16,10 +16,14 @@ class QColor:
     def __init__(self, *args):
         if len(args) == 1:
             if isinstance(args[0], str):
-                h = args[0].lstrip('#')
-                if len(h) == 6: self.r, self.g, self.b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4)); self.a = 255
-                elif len(h) == 8: self.r, self.g, self.b, self.a = tuple(int(h[i:i+2], 16) for i in (0, 2, 4, 6))
-                else: self.r = self.g = self.b = self.a = 255
+                if args[0].lower() in QColor.NAMED_COLORS:
+                    self.r, self.g, self.b = QColor.NAMED_COLORS[args[0].lower()]
+                    self.a = 255
+                else:
+                    h = args[0].lstrip('#')
+                    if len(h) == 6: self.r, self.g, self.b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4)); self.a = 255
+                    elif len(h) == 8: self.r, self.g, self.b, self.a = tuple(int(h[i:i+2], 16) for i in (0, 2, 4, 6))
+                    else: self.r = self.g = self.b = self.a = 255
             elif isinstance(args[0], QColor): self.r, self.g, self.b, self.a = args[0].r, args[0].g, args[0].b, args[0].a
             else: self.r = self.g = self.b = self.a = 255
         elif len(args) >= 3: self.r, self.g, self.b = args[:3]; self.a = args[3] if len(args) > 3 else 255

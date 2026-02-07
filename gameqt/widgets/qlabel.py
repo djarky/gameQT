@@ -13,6 +13,9 @@ class QLabel(QWidget):
     def setText(self, text): 
         self._text = str(text) if text is not None else ""
         self._calculate_natural_size()
+    def update(self):
+        super().update()
+        self._calculate_natural_size()
     def text(self): return self._text
     def sizeHint(self):
         if not hasattr(self, '_total_h'): self._calculate_natural_size()
@@ -71,9 +74,30 @@ class QLabel(QWidget):
                         curr_line = word
                 if curr_line: self._display_lines.append(curr_line)
         else:
-            self._display_lines = raw_lines
-            
-        self._line_surfs = [font.render(l, True, (20, 20, 20)) for l in self._display_lines]
+            self._display_lines = raw_lines if raw_lines else [""]
+
+        from ..gui import QColor
+        text_color_str = self._get_style_property('color')
+        
+        # Default text color based on theme if NOT specified in QSS or local
+        text_color = (30, 30, 30) # Default dark color for light theme
+        if not text_color_str:
+             app_style = QApplication._global_style
+             # Simple heuristic: if QMainWindow has a dark bg, default to light text
+             if app_style and 'QMainWindow' in app_style:
+                 mw_bg = app_style['QMainWindow'].get('background-color', '')
+                 if mw_bg.startswith('#'):
+                     try:
+                         c = QColor(mw_bg)
+                         # If background is dark, use light text
+                         if (c.red()*0.299 + c.green()*0.587 + c.blue()*0.114) < 128:
+                             text_color = (220, 220, 225)
+                     except: pass
+        else:
+            try: text_color = QColor(text_color_str).to_pygame()
+            except: pass
+
+        self._line_surfs = [font.render(l, True, text_color) for l in self._display_lines]
         
         spacing = 5
         self._total_h = sum(surf.get_height() + spacing for surf in self._line_surfs)
@@ -90,6 +114,8 @@ class QLabel(QWidget):
              y = pos.y + (self._rect.height - self._total_h) // 2
         
         screen = self._get_screen()
+        if not screen: return
+        
         if self._img_surf:
             ix = pos.x + (self._rect.width - self._img_surf.get_width()) // 2
             screen.blit(self._img_surf, (ix, y))

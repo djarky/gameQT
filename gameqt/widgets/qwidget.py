@@ -15,6 +15,9 @@ class QWidget(QObject):
         self._frame_shape = 0  # Qt.FrameShape.NoFrame
         self._window_flags = 0  # No flags by default
         self._cursor = None
+    def update(self):
+        for child in self._children: 
+            if hasattr(child, 'update'): child.update()
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops
     def dragEnterEvent(self, event): 
@@ -98,6 +101,44 @@ class QWidget(QObject):
         return QSize(100, 30)
     def setStyleSheet(self, ss):
         self._stylesheet = ss
+        # Parse local stylesheet (simple direct properties for now)
+        self._parsed_styles = {}
+        for rule in ss.split(';'):
+            if ':' in rule:
+                k, v = rule.split(':', 1)
+                self._parsed_styles[k.strip().lower()] = v.strip().lower()
+        self.update()
+
+    def _get_style_property(self, prop, pseudo=None):
+        """Resolves a style property checking local, parent, and global stylesheets with MRO support."""
+        # Walk up the parent hierarchy to find a local stylesheet rule (Qt-like inheritance)
+        curr = self
+        while curr:
+            if hasattr(curr, '_parsed_styles') and curr._parsed_styles:
+                # Note: This limited implementation check ONLY the direct widget style rules.
+                # In full QSS, the parent's stylesheet can contain selectors for children.
+                # Here we check if the current widget has a direct style property set.
+                if curr == self and prop in curr._parsed_styles:
+                    return curr._parsed_styles[prop]
+            curr = curr._parent
+
+        # 2. Global stylesheet resolution with MRO traversal
+        app_style = QApplication._global_style
+        if not app_style: return None
+        
+        for cls in self.__class__.mro():
+            cls_name = cls.__name__
+            if cls_name == 'object': break
+            
+            selectors = []
+            if pseudo: selectors.append(f"{cls_name}:{pseudo}")
+            selectors.append(cls_name)
+            
+            for sel in selectors:
+                if sel in app_style and prop in app_style[sel]:
+                    return app_style[sel][prop]
+                
+        return None
         # Basic parsing
         self._styles = {}
         for rule in ss.split(';'):
@@ -245,72 +286,76 @@ class QWidget(QObject):
         for child in self._children: child._draw_recursive(my_pos)
     def _draw(self, pos):
         screen = self._get_screen()
-        if screen and self.__class__.__name__ != 'QMainWindow':
-            from ..gui import QColor
-            color = (220, 220, 225)
-            class_name = self.__class__.__name__
-            if "Thumbnail" in class_name: color = (190, 190, 200)
-            elif "Inspector" in class_name: color = (200, 200, 210)
-            elif "Canvas" in class_name: color = (255, 255, 255)
-            elif "Splitter" in class_name: color = (230, 230, 230)
-            pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height))
-            pygame.draw.rect(screen, (120, 120, 130), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
-            if self._rect.width > 50 and self._rect.height > 20:
-                from ..gui import QFont
-                font = QFont(size=18).get_sys_font()
-                txt = font.render(class_name, True, (80, 80, 90))
-                screen.blit(txt, (pos.x + 4, pos.y + 4))
+        if not screen: return
         
-        # Render frame shape if set
+        from ..gui import QColor
+        
+        # Determine pseudo-state (e.g. hover)
+        abs_pos = self.mapToGlobal(QPoint(0,0))
+        abs_rect = pygame.Rect(abs_pos.x(), abs_pos.y(), self._rect.width, self._rect.height)
+        is_hovered = abs_rect.collidepoint(pygame.mouse.get_pos())
+        pseudo = "hover" if is_hovered else None
+        
+        # Resolve Styles from QSS (global or local)
+        bg_color_str = self._get_style_property('background-color', pseudo)
+        border_radius_str = self._get_style_property('border-radius', pseudo)
+        border_str = self._get_style_property('border', pseudo)
+        # text_color_str = self._get_style_property('color', pseudo) # Used by subclasses
+        
+        rect = pygame.Rect(pos.x, pos.y, self._rect.width, self._rect.height)
+        
+        # 1. Background
+        radius = 0
+        if border_radius_str:
+            try: radius = int(border_radius_str.replace('px', '').strip())
+            except: pass
+            
+        final_bg = None
+        if bg_color_str:
+            try: final_bg = QColor(bg_color_str).to_pygame()
+            except: pass
+        
+        if final_bg:
+            pygame.draw.rect(screen, final_bg, rect, border_radius=radius)
+        elif self.__class__.__name__ == 'QMainWindow':
+            # QMainWindow usually handles its own background if not in QSS, 
+            # but let's leave it clear to avoid double draw
+            pass
+        else:
+            # NO hardcoded gray fallback here. 
+            # If it's a generic widget without QSS, let it be transparent or 
+            # inherit from parent by NOT drawing anything.
+            pass
+            
+        # 2. Border
+        if border_str:
+            border_color = (120, 120, 130)
+            border_width = 1
+            if 'solid' in border_str:
+                parts = border_str.split()
+                for p in parts:
+                    if p.endswith('px'): 
+                        try: border_width = int(p.replace('px', ''))
+                        except: pass
+                    elif p.startswith('#') or p in QColor.NAMED_COLORS:
+                        try: border_color = QColor(p).to_pygame()
+                        except: pass
+            pygame.draw.rect(screen, border_color, rect, border_width, border_radius=radius)
+        # Removed hardcoded border fallback for legacy widgets to allow clean themes
+
+        # 3. Frame Layout (Legacy frameShape support)
         from ..core import Qt
         frame_shape = getattr(self, '_frame_shape', 0)
-        if frame_shape != Qt.FrameShape.NoFrame and frame_shape != 0:
-            rect = (pos.x, pos.y, self._rect.width, self._rect.height)
+        if frame_shape != Qt.FrameShape.NoFrame and frame_shape != 0 and not border_str:
             if frame_shape == Qt.FrameShape.Box:
-                # Simple box frame
                 pygame.draw.rect(screen, (100, 100, 100), rect, 1)
             elif frame_shape == Qt.FrameShape.Panel:
-                # Raised 3D panel effect
-                # Light edges on top-left, dark on bottom-right
-                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0] + rect[2], rect[1]))  # Top
-                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0], rect[1] + rect[3]))  # Left
-                pygame.draw.line(screen, (80, 80, 80), (rect[0], rect[1] + rect[3]), (rect[0] + rect[2], rect[1] + rect[3]))  # Bottom
-                pygame.draw.line(screen, (80, 80, 80), (rect[0] + rect[2], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]))  # Right
+                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0] + rect[2], rect[1]))
+                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0], rect[1] + rect[3]))
+                pygame.draw.line(screen, (80, 80, 80), (rect[0], rect[1] + rect[3]), (rect[0] + rect[2], rect[1] + rect[3]))
+                pygame.draw.line(screen, (80, 80, 80), (rect[0] + rect[2], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]))
             elif frame_shape == Qt.FrameShape.StyledPanel:
-                # OS-styled panel (similar to Panel but with border radius)
                 pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=4)
-        
-        # Apply CSS-like styles if present
-        if hasattr(self, '_stylesheet') and self._stylesheet:
-            # Parse styles only if needed
-            if not hasattr(self, '_parsed_styles') or self._last_stylesheet != self._stylesheet:
-                self._parsed_styles = {}
-                self._last_stylesheet = self._stylesheet
-                for rule in self._stylesheet.split(';'):
-                    if ':' in rule:
-                        k, v = rule.split(':', 1)
-                        self._parsed_styles[k.strip().lower()] = v.strip().lower()
-            
-            radius = 0
-            if 'border-radius' in self._parsed_styles:
-                try: radius = int(self._parsed_styles['border-radius'].replace('px', ''))
-                except (ValueError, AttributeError): pass
-                
-            if 'background-color' in self._parsed_styles:
-                try: 
-                    color = QColor(self._parsed_styles['background-color']).to_pygame()
-                    pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height), border_radius=radius)
-                except (ValueError, AttributeError, KeyError): pass
-            
-            if 'border' in self._parsed_styles:
-                # Simplistic border parsing
-                border_color = (100, 100, 100)
-                if 'solid' in self._parsed_styles['border']:
-                    for c_name in QColor.NAMED_COLORS:
-                        if c_name in self._parsed_styles['border']:
-                            border_color = QColor.NAMED_COLORS[c_name]
-                            break
-                pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1, border_radius=radius)
     def statusBar(self):
         # In Qt, only QMainWindow has a statusBar. 
         # For compatibility in nested widgets, we can try to find the window.

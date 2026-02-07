@@ -116,18 +116,38 @@ class QTreeWidget(QAbstractItemView):
         header_h = 25
         item_h = 22
         
-        # Header background
-        pygame.draw.rect(screen, (240, 240, 243), (pos.x, pos.y, self._rect.width, header_h))
-        pygame.draw.line(screen, (200, 200, 205), (pos.x, pos.y + header_h), (pos.x + self._rect.width, pos.y + header_h))
+        # 1. Header background styling from QHeaderView::section if available
+        header_bg = (240, 240, 243)
+        header_text_color = (60, 60, 70)
+        header_border_color = (200, 200, 205)
+        
+        app_style = QApplication._global_style
+        if app_style and "QHeaderView::section" in app_style:
+            h_style = app_style["QHeaderView::section"]
+            if 'background-color' in h_style:
+                try: header_bg = QColor(h_style['background-color']).to_pygame()
+                except: pass
+            if 'color' in h_style:
+                try: header_text_color = QColor(h_style['color']).to_pygame()
+                except: pass
+            if 'border-right' in h_style:
+                parts = h_style['border-right'].split()
+                for p in parts:
+                    if p.startswith('#') or p in QColor.NAMED_COLORS:
+                        try: header_border_color = QColor(p).to_pygame()
+                        except: pass
+        
+        pygame.draw.rect(screen, header_bg, (pos.x, pos.y, self._rect.width, header_h))
+        pygame.draw.line(screen, header_border_color, (pos.x, pos.y + header_h), (pos.x + self._rect.width, pos.y + header_h))
         
         # Header text
         labels = getattr(self, '_header_labels', ["Element", "Type", "Vis", "Opacity"])
         for i, lbl in enumerate(labels):
             col_w = self._header.sectionSize(i, self._rect.width, len(labels))
-            txt = font.render(lbl, True, (60, 60, 70))
+            txt = font.render(lbl, True, header_text_color)
             screen.blit(txt, (pos.x + i * col_w + 5, pos.y + (header_h - txt.get_height()) // 2))
             if i > 0:
-                pygame.draw.line(screen, (200, 200, 205), (pos.x + i * col_w, pos.y + 2), (pos.x + i * col_w, pos.y + header_h - 2))
+                pygame.draw.line(screen, header_border_color, (pos.x + i * col_w, pos.y + 2), (pos.x + i * col_w, pos.y + header_h - 2))
 
         # Items
         curr_y = pos.y + header_h - getattr(self, '_scroll_y', 0)
@@ -189,17 +209,42 @@ class QTreeWidget(QAbstractItemView):
                 else:
                     # Default drawing - Inline implementation
                     if is_selected:
-                        pygame.draw.rect(screen, (0, 120, 215), cell_rect)
-                        text_color = (255, 255, 255)
+                        # Check selection color
+                        sel_bg_str = self._get_style_property('background-color', pseudo='selected')
+                        sel_color_str = self._get_style_property('color', pseudo='selected')
+                        
+                        if not sel_bg_str or not sel_color_str:
+                             if app_style and "QTreeWidget::item:selected" in app_style:
+                                 if not sel_bg_str: sel_bg_str = app_style["QTreeWidget::item:selected"].get('background-color')
+                                 if not sel_color_str: sel_color_str = app_style["QTreeWidget::item:selected"].get('color')
+                        
+                        sel_bg = (0, 120, 215)
+                        if sel_bg_str:
+                            try: sel_bg = QColor(sel_bg_str).to_pygame()
+                            except: pass
+                            
+                        sel_color = (255, 255, 255)
+                        if sel_color_str:
+                            try: sel_color = QColor(sel_color_str).to_pygame()
+                            except: pass
+                        else:
+                            # Fallback: if background is light, use dark text
+                            if (sel_bg[0]*0.299 + sel_bg[1]*0.587 + sel_bg[2]*0.114) > 186:
+                                sel_color = (0, 0, 0)
+
+                        pygame.draw.rect(screen, sel_bg, cell_rect)
+                        text_color = sel_color
                     else:
+                        text_color_str = self._get_style_property('color')
                         text_color = (30, 30, 30)
+                        if text_color_str:
+                            try: text_color = QColor(text_color_str).to_pygame()
+                            except: pass
+                        
+                        # Alternating logic
                         if (curr_y - pos.y - header_h) // item_h % 2 == 1:
-                            pass # Alternating logic handled per row, simplifying here
-                            # Or we can draw row background if c == 0
-                    
-                    # Manual alternation
-                    if not is_selected and (curr_y - pos.y - header_h) // item_h % 2 == 1:
-                         pygame.draw.rect(screen, (245, 245, 250), cell_rect)
+                             # Darker variant of background if possible? For now, fixed neutral
+                             pygame.draw.rect(screen, (max(0, header_bg[0]-5), max(0, header_bg[1]-5), max(0, header_bg[2]-2)), cell_rect)
 
                     txt_val = item.text(c)
                     if txt_val:

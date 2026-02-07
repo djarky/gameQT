@@ -108,11 +108,28 @@ class QTextEdit(QWidget):
 
     def _draw(self, pos):
         from ..application import QApplication
+        from ..gui import QColor
         if not QApplication._instance or not QApplication._instance._windows: return
         screen = self._get_screen()
+        
+        bg_color_str = self._get_style_property('background-color')
+        bg_color = (255, 255, 255)
+        if bg_color_str:
+            try: bg_color = QColor(bg_color_str).to_pygame()
+            except: pass
+            
+        border_color = (170, 170, 180)
+        border_str = self._get_style_property('border')
+        if border_str:
+            parts = border_str.split()
+            for p in parts:
+                if p.startswith('#') or p in QColor.NAMED_COLORS:
+                    try: border_color = QColor(p).to_pygame()
+                    except: pass
+
         # Clear background for rich text
-        pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, self._rect.width, self._rect.height))
-        pygame.draw.rect(screen, (170, 170, 180), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
+        pygame.draw.rect(screen, bg_color, (pos.x, pos.y, self._rect.width, self._rect.height))
+        pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1)
         
         if not hasattr(self, '_doc_lines') or not self._doc_lines:
             self._doc_lines = [[{'text': line, 'bold': False, 'italic': False, 'color': (0,0,0), 'size': 14}] for line in self._lines]

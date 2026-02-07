@@ -53,4 +53,13 @@ class QMainWindow(QWidget):
         if self._menu_bar: self._menu_bar._draw_recursive(my_pos)
     def _draw(self, pos):
         screen = self._screen or (self.window()._screen if self.window() else None)
-        if screen: screen.fill((230, 230, 235))
+        if not screen: return
+        
+        from ..gui import QColor
+        bg_color_str = self._get_style_property('background-color')
+        bg_color = (230, 230, 235) # Default light gray
+        if bg_color_str:
+            try: bg_color = QColor(bg_color_str).to_pygame()
+            except: pass
+        
+        screen.fill(bg_color)

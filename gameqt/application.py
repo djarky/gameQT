@@ -21,6 +21,8 @@ class QDropEvent:
 class QApplication:
     _instance = None
     _clipboard = None
+    _global_style = {}
+    
     def __init__(self, args): 
         pygame.init()
         QApplication._instance = self
@@ -29,11 +31,21 @@ class QApplication:
         self._shortcuts = []
         self._popups = [] # Global popup layer (Z-order)
         self._running = False
+        self._stylesheet = ""
         try:
             if not pygame.scrap.get_init(): pygame.scrap.init()
         except Exception as e:
             from .error_handler import get_logger
             get_logger().info("application.QApplication", f"pygame.scrap not available: {e}")
+
+    def setStyleSheet(self, ss):
+        from .utils import QSSParser
+        self._stylesheet = ss
+        QApplication._global_style = QSSParser.parse(ss)
+        for win in self._windows: win.update()
+        
+    def styleSheet(self):
+        return self._stylesheet
 
     @staticmethod
     def clipboard(): return QApplication._clipboard

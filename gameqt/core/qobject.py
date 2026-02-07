@@ -64,6 +64,8 @@ class QObject:
     def _draw_recursive(self, pos=pygame.Vector2(0,0)):
         if self.isVisible():
             for child in self._children:
-                child._draw_recursive(pos)
+                if hasattr(child, '_draw_recursive'):
+                    child._draw_recursive(pos)
+    def update(self): pass
 
 def pyqtSignal(*args): return Signal(*args)
