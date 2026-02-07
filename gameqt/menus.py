@@ -31,75 +31,107 @@ class QMenuBar(QWidget):
                 screen.blit(txt, (pos.x + curr_x_local, pos.y + (self._rect.height - th) // 2))
                 curr_x_local += tw + 25
             
-            # Draw active dropdown AFTER all menu titles
-            if self._active_menu:
-                for m, rect in self._menu_rects:
-                    if m == self._active_menu:
-                        dropdown_pos = pygame.Vector2(pos.x + rect.x, pos.y + self._rect.height)
-                        m._draw_dropdown(dropdown_pos)
-                        break
+            # Active dropdown is now drawn by QApp overlay
+
+    def _draw_popup_overlay(self):
+        if not self._active_menu: return
+        pos = self.mapToGlobal(pygame.Vector2(0,0))
+        for m, rect in self._menu_rects:
+            if m == self._active_menu:
+                dropdown_pos = pygame.Vector2(pos.x() + rect.x, pos.y() + self._rect.height)
+                m._draw_dropdown(dropdown_pos)
+                break
+
     def _handle_event(self, event, offset):
-        # Custom handle_event for QMenuBar to allow clicking outside bounds (on dropdowns)
-        if not self.isVisible(): return
-        
-        # Calculate my absolute position
+        # Normal handle_event only for the bar itself
+        if not self.isVisible(): return False
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         
-        # Prepare QMouseEvent
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-            # For QMenuBar allow events anywhere if we have an active menu
-            # Otherwise only inside rect
             mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
-            is_inside = mouse_rect.collidepoint(pygame.mouse.get_pos())
-            
-            if is_inside or self._active_menu:
+            if mouse_rect.collidepoint(pygame.mouse.get_pos()):
                 local_pos = pygame.Vector2(pygame.mouse.get_pos()) - my_pos
-                q_event = QMouseEvent(local_pos, 
-                                     getattr(event, 'button', Qt.MouseButton.NoButton), 
-                                     pygame.key.get_mods())
-                
+                q_event = QMouseEvent(local_pos, getattr(event, 'button', Qt.MouseButton.NoButton), pygame.key.get_mods())
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.mousePressEvent(q_event)
-                # We don't handle release/move for now in MenuBar extensively
-    def mousePressEvent(self, ev):
-        # Check if clicking on an item in an active dropdown
-        if self._active_menu:
+                return True
+        return False
+
+    def _handle_popup_event(self, event):
+        if not self._active_menu: return False
+        
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Check if clicking on an item in an active dropdown
+            pos = self.mapToGlobal(pygame.Vector2(0,0))
             for m, rect in self._menu_rects:
                 if m == self._active_menu:
                     # Dropdown is below the menu bar
-                    dropdown_x = rect.x
-                    dropdown_y = self._rect.height
+                    dropdown_x = pos.x() + rect.x
+                    dropdown_y = pos.y() + self._rect.height
                     dropdown_width = 200
                     dropdown_height = len(m._actions) * 28
                     
                     # Check if click is in dropdown area
-                    click_x = ev.pos().x()
-                    click_y = ev.pos().y()
+                    mouse_pos = pygame.mouse.get_pos()
                     
-                    if (dropdown_x <= click_x <= dropdown_x + dropdown_width and
-                        dropdown_y <= click_y <= dropdown_y + dropdown_height):
+                    if (dropdown_x <= mouse_pos[0] <= dropdown_x + dropdown_width and
+                        dropdown_y <= mouse_pos[1] <= dropdown_y + dropdown_height):
                         # Click inside dropdown
-                        local_x = click_x - dropdown_x
-                        local_y = click_y - dropdown_y
+                        local_x = mouse_pos[0] - dropdown_x
+                        local_y = mouse_pos[1] - dropdown_y
                         
                         result = m._handle_dropdown_click(pygame.Vector2(local_x, local_y))
                         if result:
-                            self._active_menu = None
-                        return
+                            self._set_active_menu(None)
+                        return True
                     break
-        
+            
+            # Clicked outside. Check if it's another menu title in the bar
+            pos = self.mapToGlobal(pygame.Vector2(0,0))
+            mouse_pos = pygame.mouse.get_pos()
+            for m, rect in self._menu_rects:
+                if rect.move(pos.x(), pos.y()).collidepoint(mouse_pos):
+                    # Will be handled by normal event loop? 
+                    # Actually better handle here to toggle
+                    if self._active_menu == m:
+                        self._set_active_menu(None)
+                    else:
+                        self._set_active_menu(m)
+                    return True
+            
+            # Clicked completely elsewhere
+            self._set_active_menu(None)
+            return True
+        elif event.type == pygame.MOUSEMOTION:
+             # Consume motion if over dropdown
+             if self._active_menu:
+                 pos = self.mapToGlobal(pygame.Vector2(0,0))
+                 for m, rect in self._menu_rects:
+                     if m == self._active_menu:
+                         dropdown_rect = pygame.Rect(pos.x() + rect.x, pos.y() + self._rect.height, 200, len(m._actions) * 28)
+                         if dropdown_rect.collidepoint(pygame.mouse.get_pos()):
+                             return True
+        return False
+
+    def _set_active_menu(self, m):
+        if self._active_menu != m:
+            self._active_menu = m
+            from .application import QApplication
+            if m:
+                QApplication.instance().add_popup(self)
+            else:
+                QApplication.instance().remove_popup(self)
+
+    def mousePressEvent(self, ev):
+        # This is reached if event was NOT handled by popup layer first (i.e. no menu active)
         # Check if clicking on a menu title
         for m, rect in self._menu_rects:
             if rect.collidepoint(ev.pos().x(), ev.pos().y()):
-                # Toggle menu
-                if self._active_menu == m:
-                    self._active_menu = None
-                else:
-                    self._active_menu = m
+                self._set_active_menu(m)
                 return
         
         # Click outside menus
-        self._active_menu = None
+        self._set_active_menu(None)
 
 class QMenu(QWidget):
     def __init__(self, title="", parent=None): super().__init__(parent); self.text = title; self._actions = []

@@ -27,6 +27,7 @@ class QApplication:
         QApplication._clipboard = QClipboard()
         self._windows = []
         self._shortcuts = []
+        self._popups = [] # Global popup layer (Z-order)
         self._running = False
         try:
             if not pygame.scrap.get_init(): pygame.scrap.init()
@@ -36,6 +37,14 @@ class QApplication:
     def clipboard(): return QApplication._clipboard
     @staticmethod
     def instance(): return QApplication._instance
+
+    def add_popup(self, popup):
+        if popup not in self._popups:
+            self._popups.append(popup)
+            
+    def remove_popup(self, popup):
+        if popup in self._popups:
+            self._popups.remove(popup)
 
     def setApplicationName(self, name):
         self._app_name = name
@@ -90,6 +99,10 @@ class QApplication:
             for win in self._windows:
                  if win.isVisible(): win._draw_recursive(pygame.Vector2(0,0))
             
+            # Popups in drag loop? Usually not needed but for consistency:
+            for popup in self._popups:
+                 if hasattr(popup, '_draw_popup_overlay'): popup._draw_popup_overlay()
+
             # Draw Drag Icon?
             # if drag.pixmap...
             
@@ -149,6 +162,16 @@ class QApplication:
                         if win.isVisible() and win._handle_drop_event(drop_event, pygame.Vector2(0,0)):
                             break
                 
+                # 1. Handle popups first (highest priority)
+                handled = False
+                for popup in reversed(self._popups):
+                    if hasattr(popup, '_handle_popup_event'):
+                        if popup._handle_popup_event(event):
+                            handled = True
+                            break
+                if handled: continue
+
+                # 2. Handle normal windows
                 for win in self._windows:
                     if win.isVisible(): win._handle_event(event, pygame.Vector2(0,0))
                 
@@ -161,6 +184,12 @@ class QApplication:
                 if win.isVisible():
                     has_visible = True
                     win._draw_recursive(pygame.Vector2(0,0))
+            
+            # 3. Draw popups last (highest z-order)
+            for popup in self._popups:
+                if hasattr(popup, '_draw_popup_overlay'):
+                    popup._draw_popup_overlay()
+
             if not has_visible and clock.get_time() > 5000: break
             pygame.display.flip(); clock.tick(60)
         pygame.quit(); return 0

@@ -8,6 +8,9 @@ class QScrollArea(QWidget):
         super().__init__(parent)
         self._scroll_widget = None
         self._scroll_y = 0
+        self._dragging_scrollbar = False
+        self._drag_start_y = 0
+        self._drag_start_scroll_y = 0
         
     def setWidget(self, w): 
         self._scroll_widget = w
@@ -79,29 +82,73 @@ class QScrollArea(QWidget):
                 pygame.draw.rect(screen, (150, 150, 160), (my_pos.x + self._rect.width - 10, bar_y, 8, bar_h), border_radius=4)
 
     def _handle_event(self, event, offset):
-        """Override to capture wheel events before children."""
+        """Override to handle scrollbar dragging and wheel events."""
         if not self.isVisible(): return False
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         
-        # Check if mouse is over this widget
+        # 1. Handle scrollbar dragging
+        content_h = self._get_content_height()
+        max_scroll = max(0, content_h - self._rect.height)
+        
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = pygame.mouse.get_pos()
+            scrollbar_rect = pygame.Rect(my_pos.x + self._rect.width - 12, my_pos.y, 12, self._rect.height)
+            
+            if scrollbar_rect.collidepoint(mouse_pos):
+                if max_scroll > 0:
+                    bar_ratio = self._rect.height / content_h
+                    bar_h = max(30, self._rect.height * bar_ratio)
+                    
+                    bar_y = my_pos.y + (self._scroll_y / max_scroll) * (self._rect.height - bar_h)
+                    thumb_rect = pygame.Rect(my_pos.x + self._rect.width - 10, bar_y, 8, bar_h)
+                    
+                    if thumb_rect.collidepoint(mouse_pos):
+                        # Start dragging
+                        self._dragging_scrollbar = True
+                        self._drag_start_y = mouse_pos[1]
+                        self._drag_start_scroll_y = self._scroll_y
+                    else:
+                        # Jump to position
+                        rel_y = mouse_pos[1] - my_pos.y - (bar_h / 2)
+                        self._scroll_y = max(0, min(max_scroll, (rel_y / (self._rect.height - bar_h)) * max_scroll))
+                        # Also start dragging from here
+                        self._dragging_scrollbar = True
+                        self._drag_start_y = mouse_pos[1]
+                        self._drag_start_scroll_y = self._scroll_y
+                return True
+
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if self._dragging_scrollbar:
+                self._dragging_scrollbar = False
+                return True
+
+        elif event.type == pygame.MOUSEMOTION:
+            if self._dragging_scrollbar:
+                mouse_pos = pygame.mouse.get_pos()
+                dy = mouse_pos[1] - self._drag_start_y
+                
+                bar_ratio = self._rect.height / content_h
+                bar_h = max(30, self._rect.height * bar_ratio)
+                
+                bar_move_range = self._rect.height - bar_h
+                if bar_move_range > 0:
+                    scroll_delta = (dy / bar_move_range) * max_scroll
+                    self._scroll_y = max(0, min(max_scroll, self._drag_start_scroll_y + scroll_delta))
+                return True
+
+        # Check if mouse is over this widget for wheel events
         mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
         if not mouse_rect.collidepoint(pygame.mouse.get_pos()):
             return False
         
         # Intercept wheel events for scrolling
         if event.type == pygame.MOUSEWHEEL:
-            content_h = self._get_content_height()
-            max_scroll = max(0, content_h - self._rect.height)
-            
             delta = event.y * 30  # Scroll speed
             self._scroll_y = max(0, min(max_scroll, self._scroll_y - delta))
             return True  # Consume the event
         
         # Legacy scroll buttons
         if event.type == pygame.MOUSEBUTTONDOWN and event.button in (4, 5):
-            content_h = self._get_content_height()
-            max_scroll = max(0, content_h - self._rect.height)
-            
             if event.button == 4:  # Scroll up
                 self._scroll_y = max(0, self._scroll_y - 30)
             else:  # Scroll down

@@ -52,10 +52,10 @@ class QWidget(QObject):
             abs_x += curr._rect.x
             abs_y += curr._rect.y
             curr = curr._parent
-        from .qwidget import QPointF # Note: QPointF seems to be missing in core, using QPoint for now if needed, but original uses QPointF
         try: from ..core import QPointF
         except: from ..core import QPoint as QPointF
-        return QPointF(abs_x + p.x(), abs_y + p.y())
+        pt = QPointF(p)
+        return QPointF(abs_x + pt.x(), abs_y + pt.y())
     def setCentralWidget(self, widget):
         widget._set_parent(self); widget.show()
         widget._rect = pygame.Rect(0, 0, self._rect.width, self._rect.height)
