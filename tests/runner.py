@@ -48,7 +48,7 @@ class TestRunner(QMainWindow):
         
         demo_info = QLabel(demo_content)
         demo_info.setText("🎨 Visual Tests - Open GUI windows")
-        demo_info.setStyleSheet("background-color: #E3F2FD; padding: 8px;")
+        demo_info.setStyleSheet("padding: 8px; border-bottom: 1px solid #2196F3;")
         demo_info.show()
         demo_layout.addWidget(demo_info)
         
@@ -72,7 +72,7 @@ class TestRunner(QMainWindow):
         
         unit_info = QLabel(unit_content)
         unit_info.setText("⚙️ Console Tests - Check terminal")
-        unit_info.setStyleSheet("background-color: #FFF3E0; padding: 8px;")
+        unit_info.setStyleSheet("padding: 8px; border-bottom: 1px solid #FF9800;")
         unit_info.show()
         unit_layout.addWidget(unit_info)
         
@@ -156,11 +156,9 @@ class TestRunner(QMainWindow):
         card = QWidget(parent)
         card.resize(820, 55)
         
-        # Color coding
-        if test_type == "Demo":
-            card.setStyleSheet("background-color: #F5F5F5; border: 1px solid #2196F3; border-radius: 6px; margin: 2px;")
-        else:
-            card.setStyleSheet("background-color: #FAFAFA; border: 1px solid #FF9800; border-radius: 6px; margin: 2px;")
+        # border based on type
+        border_clr = "#2196F3" if test_type == "Demo" else "#FF9800"
+        card.setStyleSheet(f"border: 1px solid {border_clr}; border-radius: 6px; margin: 2px;")
         
         layout = QHBoxLayout(card)
         layout.setSpacing(15)
