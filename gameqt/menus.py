@@ -61,29 +61,35 @@ class QMenuBar(QWidget):
         if not self._active_menu: return False
         
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Check if clicking on an item in an active dropdown
+            # Check if clicking on an item in an active dropdown (or submenus)
             pos = self.mapToGlobal(pygame.Vector2(0,0))
             for m, rect in self._menu_rects:
                 if m == self._active_menu:
                     # Dropdown is below the menu bar
                     dropdown_x = pos.x() + rect.x
                     dropdown_y = pos.y() + self._rect.height
-                    dropdown_width = 200
-                    dropdown_height = len(m._actions) * 28
                     
-                    # Check if click is in dropdown area
+                    # Delegate click to menu structure (recursive check)
+                    # We convert global mouse pos to local pos relative to the dropdown start
                     mouse_pos = pygame.mouse.get_pos()
+                    local_pos = pygame.Vector2(mouse_pos[0] - dropdown_x, mouse_pos[1] - dropdown_y)
                     
-                    if (dropdown_x <= mouse_pos[0] <= dropdown_x + dropdown_width and
-                        dropdown_y <= mouse_pos[1] <= dropdown_y + dropdown_height):
-                        # Click inside dropdown
-                        local_x = mouse_pos[0] - dropdown_x
-                        local_y = mouse_pos[1] - dropdown_y
-                        
-                        result = m._handle_dropdown_click(pygame.Vector2(local_x, local_y))
-                        if result:
-                            self._set_active_menu(None)
+                    result = m._handle_dropdown_click(local_pos)
+                    if result:
+                        self._set_active_menu(None)
                         return True
+                    
+                    # If returned False, it might be a click on a submenu item that kept menu open
+                    # OR a click outside entirely
+                    
+                    # Check if click was within the root menu rect to consume it?
+                    # Actually _handle_dropdown_click returns True only if an action was triggered (close menu)
+                    
+                    # We need to know if we should close the menu (clicked outside)
+                    if not m._rect_contains(local_pos):
+                         break # Go check menu bar items
+                    else:
+                         return True # Clicked inside but no action (e.g. separator or just empty space)
                     break
             
             # Clicked outside. Check if it's another menu title in the bar
@@ -91,8 +97,6 @@ class QMenuBar(QWidget):
             mouse_pos = pygame.mouse.get_pos()
             for m, rect in self._menu_rects:
                 if rect.move(pos.x(), pos.y()).collidepoint(mouse_pos):
-                    # Will be handled by normal event loop? 
-                    # Actually better handle here to toggle
                     if self._active_menu == m:
                         self._set_active_menu(None)
                     else:
@@ -102,19 +106,35 @@ class QMenuBar(QWidget):
             # Clicked completely elsewhere
             self._set_active_menu(None)
             return True
+            
         elif event.type == pygame.MOUSEMOTION:
-             # Consume motion if over dropdown
+             # Pass motion to active menu for submenu handling
              if self._active_menu:
                  pos = self.mapToGlobal(pygame.Vector2(0,0))
                  for m, rect in self._menu_rects:
                      if m == self._active_menu:
-                         dropdown_rect = pygame.Rect(pos.x() + rect.x, pos.y() + self._rect.height, 200, len(m._actions) * 28)
-                         if dropdown_rect.collidepoint(pygame.mouse.get_pos()):
+                         dropdown_x = pos.x() + rect.x
+                         dropdown_y = pos.y() + self._rect.height
+                         
+                         mouse_pos = pygame.mouse.get_pos()
+                         local_pos = pygame.Vector2(mouse_pos[0] - dropdown_x, mouse_pos[1] - dropdown_y)
+                         
+                         if m._handle_dropdown_motion(local_pos):
                              return True
+                         
+                         # Check if over menu bar to switch menus on hover (classic behavior)
+                         # This allows sliding across "File Edit View"
+                         for other_m, other_rect in self._menu_rects:
+                             if other_m != m and other_rect.move(pos.x(), pos.y()).collidepoint(mouse_pos):
+                                 self._set_active_menu(other_m)
+                                 return True
+                                 
         return False
 
     def _set_active_menu(self, m):
         if self._active_menu != m:
+            if self._active_menu:
+                self._active_menu._close_all_submenus()
             self._active_menu = m
             from .application import QApplication
             if m:
@@ -134,7 +154,11 @@ class QMenuBar(QWidget):
         self._set_active_menu(None)
 
 class QMenu(QWidget):
-    def __init__(self, title="", parent=None): super().__init__(parent); self.text = title; self._actions = []
+    def __init__(self, title="", parent=None): 
+        super().__init__(parent); self.text = title; self._actions = []
+        self._active_submenu = None
+        self._submenu_rect = None # Rect of the item that opened the submenu
+    
     def addAction(self, arg):
         if isinstance(arg, QAction):
             self._actions.append(arg)
@@ -149,62 +173,168 @@ class QMenu(QWidget):
         self._actions.append(m); return m
     def clear(self): self._actions = []
     def addSeparator(self): self._actions.append("SEP")
+    
     def exec(self, pos=None):
-        # Show menu at position and wait for selection
-        # In a real implementation, this would show a Pygame popup menu
         print(f"[QMenu] Showing popup menu at {pos}")
         return None
+        
+    def _close_all_submenus(self):
+        if self._active_submenu:
+            self._active_submenu._close_all_submenus()
+            self._active_submenu = None
+
     def _draw(self, pos):
         """Draw the menu at the given position (standalone, not dropdown)."""
-        # Reuse dropdown rendering logic
         self._draw_dropdown(pos)
+        
     def _draw_dropdown(self, pos):
         screen = pygame.display.get_surface()
         if not screen or not self._actions: return
         w, h = 200, len(self._actions) * 28
+        
+        # Draw main background
         pygame.draw.rect(screen, (255, 255, 255), (pos.x, pos.y, w, h))
         pygame.draw.rect(screen, (160, 160, 170), (pos.x, pos.y, w, h), 1)
+        pygame.draw.rect(screen, (100, 100, 100), (pos.x + 2, pos.y + 2, w, h), 1) # Shadow hint
+        
         font = pygame.font.SysFont(None, 18)
         mouse_pos = pygame.mouse.get_pos()
+        
+        # We need to know where we are relative to global to check hover
+        # BUT this method is drawing at 'pos' which is global.
+        
         for i, a in enumerate(self._actions):
             rect = pygame.Rect(pos.x, pos.y + i*28, w, 28)
+            
+            # Highlight if hovered or if it's the active submenu parent
+            is_active_parent = (isinstance(a, QMenu) and self._active_submenu == a)
+            is_hovered = rect.collidepoint(mouse_pos)
+            
             if a == "SEP":
                  pygame.draw.line(screen, (220, 220, 225), (pos.x+10, pos.y+i*28+14), (pos.x+w-10, pos.y+i*28+14))
             else:
                 is_menu = isinstance(a, QMenu)
                 label = (a.text if not is_menu else a.text + "  >")
-                if rect.collidepoint(mouse_pos):
+                
+                if is_hovered or is_active_parent:
                     pygame.draw.rect(screen, (0, 120, 215), rect)
                     txt = font.render(str(label) if label is not None else "", True, (255, 255, 255))
                 else:
                     txt = font.render(str(label) if label is not None else "", True, (45, 45, 50))
+                
                 screen.blit(txt, (pos.x + 12, pos.y + i*28 + (28 - txt.get_height()) // 2))
+                
+                # Draw submenu if active
+                if is_active_parent:
+                    # Calculate position for submenu (right side of this item)
+                    submenu_pos = pygame.Vector2(pos.x + w, pos.y + i*28)
+                    a._draw_dropdown(submenu_pos)
+
+    def _rect_contains(self, local_pos):
+        # Helper to check if pos is within this menu OR its submenus
+        w, h = 200, len(self._actions) * 28
+        if 0 <= local_pos.x <= w and 0 <= local_pos.y <= h:
+            return True
+            
+        if self._active_submenu:
+            # Check submenu bounds
+            # Submenu is at x+200, and some y offset
+            # We need to find the y offset of the submenu parent
+            submenu_y_offset = -1
+            for i, a in enumerate(self._actions):
+                if a == self._active_submenu:
+                    submenu_y_offset = i * 28
+                    break
+            
+            if submenu_y_offset != -1:
+                # Transform local_pos to submenu local space
+                # Submenu starts at (200, submenu_y_offset) relative to this menu
+                sub_local = pygame.Vector2(local_pos.x - 200, local_pos.y - submenu_y_offset)
+                return self._active_submenu._rect_contains(sub_local)
+                
+        return False
+
     def _handle_dropdown_click(self, local_pos):
-        # Check if click is within dropdown bounds
-        menu_width = 200
-        menu_height = len(self._actions) * 28
+        # local_pos is relative to the top-left of THIS menu
+        w, h = 200, len(self._actions) * 28
         
-        if 0 <= local_pos.x <= menu_width and 0 <= local_pos.y <= menu_height:
+        # 1. Check if click is in active submenu
+        if self._active_submenu:
+            submenu_y_offset = -1
+            for i, a in enumerate(self._actions):
+                if a == self._active_submenu:
+                    submenu_y_offset = i * 28
+                    break
+            
+            if submenu_y_offset != -1:
+                # Submenu area check loosely (right side)
+                if local_pos.x >= 200:
+                    sub_local = pygame.Vector2(local_pos.x - 200, local_pos.y - submenu_y_offset)
+                    if self._active_submenu._handle_dropdown_click(sub_local):
+                        return True
+        
+        # 2. Check click on this menu items
+        if 0 <= local_pos.x <= w and 0 <= local_pos.y <= h:
             idx = int(local_pos.y // 28)
             if 0 <= idx < len(self._actions):
                 a = self._actions[idx]
-                if a == "SEP": 
-                    return False
-                if isinstance(a, QAction): 
-                    # Only trigger if action is enabled and visible
-                    if a.isEnabled() and a.isVisible():
-                        # Close menu before emitting, in case it starts a modal dialog
+                if a == "SEP": return False
+                
+                if isinstance(a, QAction):
+                     if a.isEnabled() and a.isVisible():
+                        # Close menu hierarchy
                         curr = self
                         while curr:
-                            if hasattr(curr, '_active_menu'): curr._active_menu = None # For QMenuBar
+                            if hasattr(curr, '_active_menu'): curr._active_menu = None
                             if hasattr(curr, '_parent'): curr = curr._parent
                             else: break
                         
-                        a.triggered.emit() # This should call the connected slot
+                        a.triggered.emit() 
                         return True
                 elif isinstance(a, QMenu):
-                    # Submenu clicked - for now just return False to keep menu open
-                    return False
+                    # Clicked on a submenu item -> Toggle it? 
+                    # Usually clicks just open it if not open, or do nothing if already open
+                    # We rely on hover, but click is good backup
+                    self._active_submenu = a
+                    return False # Keep menu open
+        return False
+
+    def _handle_dropdown_motion(self, local_pos):
+        w, h = 200, len(self._actions) * 28
+        
+        # 1. Pass motion to active submenu if we are in its "territory" (to the right)
+        if self._active_submenu:
+            submenu_y_offset = -1
+            for i, a in enumerate(self._actions):
+                if a == self._active_submenu:
+                    submenu_y_offset = i * 28
+                    break
+            
+            # If mouse is clearly strictly inside the submenu zone
+            # (Simple heuristic: to the right of this menu)
+            if local_pos.x >= 200:
+                 sub_local = pygame.Vector2(local_pos.x - 200, local_pos.y - submenu_y_offset)
+                 if self._active_submenu._handle_dropdown_motion(sub_local):
+                     return True
+                 # If returns False, maybe we moved out of submenu?
+                 # Don't close immediately to allow diagonal movement? 
+                 # For now, strict: if not in submenu, maybe we are back in this menu?
+        
+        # 2. Check hover on this menu items
+        if 0 <= local_pos.x <= w and 0 <= local_pos.y <= h:
+            idx = int(local_pos.y // 28)
+            if 0 <= idx < len(self._actions):
+                item = self._actions[idx]
+                if isinstance(item, QMenu):
+                    # Hovering over a submenu item -> Open it
+                    if self._active_submenu != item:
+                        self._active_submenu = item
+                elif isinstance(item, QAction) or item == "SEP":
+                    # Hovering over a normal item -> Close active submenu
+                    if self._active_submenu:
+                        self._active_submenu = None
+            return True
+        
         return False
 
 class QAction(QObject):

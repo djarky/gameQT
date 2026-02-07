@@ -22,6 +22,11 @@ class QMainWindow(QWidget):
             self._status_bar = QStatusBar(self)
             self._status_bar.show()
         return self._status_bar
+    def menuBar(self):
+        if not self._menu_bar:
+            from ..menus import QMenuBar
+            self.setMenuBar(QMenuBar(self))
+        return self._menu_bar
     def _draw_recursive(self, offset=pygame.Vector2(0,0)):
         if not self.isVisible(): return
         menu_h = 35 if self._menu_bar and self._menu_bar.isVisible() else 0
