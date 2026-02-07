@@ -5,7 +5,7 @@
 # Get the directory where the script is located
 SCRIPT_PATH="$0"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Display help message
 show_help() {
@@ -23,27 +23,28 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     exit 0
 fi
 
-# Set PYTHONPATH to include the project root so 'gameqt' can be imported
-export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
-
-# Check for virtual environment and activate it if it exists
-if [ -d "$PROJECT_ROOT/.venv" ]; then
-    echo "Activating virtual environment at $PROJECT_ROOT/.venv..."
-    . "$PROJECT_ROOT/.venv/bin/activate"
-elif [ -d "$PROJECT_ROOT/venv" ]; then
-    echo "Activating virtual environment at $PROJECT_ROOT/venv..."
-    . "$PROJECT_ROOT/venv/bin/activate"
+# Check for virtual environment and set python executable
+PYTHON_EXE="python3"
+if [ -d "$PROJECT_ROOT/pdf_visual_editor/.venv" ]; then
+    echo "Using virtual environment at $PROJECT_ROOT/pdf_visual_editor/.venv..."
+    PYTHON_EXE="$PROJECT_ROOT/pdf_visual_editor/.venv/bin/python3"
+elif [ -d "$PROJECT_ROOT/pdf_visual_editor/venv" ]; then
+    echo "Using virtual environment at $PROJECT_ROOT/pdf_visual_editor/venv..."
+    PYTHON_EXE="$PROJECT_ROOT/pdf_visual_editor/venv/bin/python3"
 fi
 
-# Ensure python3 is available
-if ! command -v python3 > /dev/null 2>&1; then
-    echo "Error: python3 is not installed or not in PATH."
+# Set PYTHONPATH to include the project root and the app directory
+export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/pdf_visual_editor:$PYTHONPATH"
+
+# Ensure python is available
+if ! "$PYTHON_EXE" --version > /dev/null 2>&1; then
+    echo "Error: python is not installed or not in PATH."
     exit 1
 fi
 
 echo "Starting GameQt Test Runner..."
 # Pass all script arguments to the Python runner
-python3 "$SCRIPT_DIR/runner.py" "$@"
+"$PYTHON_EXE" "$SCRIPT_DIR/runner.py" "$@"
 EXIT_CODE=$?
 
 exit $EXIT_CODE

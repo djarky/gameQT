@@ -1,14 +1,11 @@
-
+# Imports
 import sys
 import os
 import subprocess
 import datetime
 
-# Ensure gameqt is in path
+# Setup paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-if os.path.join(project_root, 'pdf_visual_editor') not in sys.path:
-     sys.path.insert(0, os.path.join(project_root, 'pdf_visual_editor'))
 
 from gameqt.application import QApplication
 from gameqt.widgets import (QMainWindow, QWidget, QLabel, QPushButton, 
