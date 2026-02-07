@@ -55,8 +55,9 @@ class Qt:
         ItemNeverHasChildren = 128
         ItemIsFocused = 256
     class CheckState: Checked = 2; Unchecked = 0
-    class PenStyle: SolidLine = 1; DashLine = 2
+    class PenStyle: SolidLine = 1; DashLine = 2; DotLine = 3
     class BrushStyle: SolidPattern = 1; NoBrush = 0
+    class FrameShape: NoFrame = 0; Box = 1; Panel = 2; WinPanel = 3; HLine = 4; VLine = 5; StyledPanel = 6
     class TextInteractionFlag: NoTextInteraction = 0; TextEditorInteraction = 1
     class ContextMenuPolicy: CustomContextMenu = 1; PreventContextMenu = 0; DefaultContextMenu = 2
     class TextFormat: PlainText = 0; RichText = 1

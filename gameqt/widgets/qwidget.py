@@ -12,6 +12,9 @@ class QWidget(QObject):
         self._set_parent(parent)
         self.clicked = Signal(); self._accept_drops = False
         self._resized = False
+        self._frame_shape = 0  # Qt.FrameShape.NoFrame
+        self._window_flags = 0  # No flags by default
+        self._cursor = None
     def setAcceptDrops(self, b): self._accept_drops = b
     def acceptDrops(self): return self._accept_drops
     def dragEnterEvent(self, event): 
@@ -34,7 +37,23 @@ class QWidget(QObject):
         if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
     def move(self, x, y): self._rect.x, self._rect.y = x, y
     def setMinimumSize(self, w, h): self._min_size = (w, h)
-    def setCursor(self, cursor): self._cursor = cursor
+    def minimumSize(self): return getattr(self, '_min_size', (0, 0))
+    def setFrameShape(self, shape): 
+        """Set the frame shape for this widget."""
+        self._frame_shape = shape
+    def frameShape(self): return getattr(self, '_frame_shape', 0)
+    def setCursor(self, cursor): 
+        """Set the cursor for this widget."""
+        self._cursor = cursor
+    def setWindowFlags(self, flags):
+        """Set window flags (Dialog, FramelessWindowHint, etc.)."""
+        self._window_flags = flags
+        # Apply frameless hint if set
+        from ..core import Qt
+        if flags & Qt.WindowType.WindowTitleHint == 0:
+            # Frameless - would need window chrome removal in future
+            pass
+    def windowFlags(self): return getattr(self, '_window_flags', 0)
     def viewport(self): return self # Fallback
     def window(self):
         curr = self
@@ -107,6 +126,15 @@ class QWidget(QObject):
         if not self.isVisible(): return False
         my_pos = offset + pygame.Vector2(self._rect.topleft)
         
+        # Apply cursor if mouse is over this widget
+        if event.type == pygame.MOUSEMOTION and hasattr(self, '_cursor') and self._cursor:
+            mouse_rect = pygame.Rect(my_pos.x, my_pos.y, self._rect.width, self._rect.height)
+            if mouse_rect.collidepoint(pygame.mouse.get_pos()):
+                try: 
+                    pygame.mouse.set_cursor(self._cursor)
+                except: 
+                    pass
+        
         # Special handling for QMainWindow with menu bar
         if hasattr(self, '_menu_bar') and self._menu_bar:
             if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
@@ -150,9 +178,6 @@ class QWidget(QObject):
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if hasattr(self, 'mouseReleaseEvent'): self.mouseReleaseEvent(q_event)
                 elif event.type == pygame.MOUSEMOTION:
-                    if hasattr(self, '_cursor'): 
-                         try: pygame.mouse.set_cursor(self._cursor)
-                         except: pass
                     if hasattr(self, 'mouseMoveEvent'): self.mouseMoveEvent(q_event)
                 
                 return q_event.isAccepted()
@@ -225,6 +250,25 @@ class QWidget(QObject):
                 font = pygame.font.SysFont(None, 18)
                 txt = font.render(class_name, True, (80, 80, 90))
                 screen.blit(txt, (pos.x + 4, pos.y + 4))
+        
+        # Render frame shape if set
+        from ..core import Qt
+        frame_shape = getattr(self, '_frame_shape', 0)
+        if frame_shape != Qt.FrameShape.NoFrame and frame_shape != 0:
+            rect = (pos.x, pos.y, self._rect.width, self._rect.height)
+            if frame_shape == Qt.FrameShape.Box:
+                # Simple box frame
+                pygame.draw.rect(screen, (100, 100, 100), rect, 1)
+            elif frame_shape == Qt.FrameShape.Panel:
+                # Raised 3D panel effect
+                # Light edges on top-left, dark on bottom-right
+                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0] + rect[2], rect[1]))  # Top
+                pygame.draw.line(screen, (220, 220, 220), (rect[0], rect[1]), (rect[0], rect[1] + rect[3]))  # Left
+                pygame.draw.line(screen, (80, 80, 80), (rect[0], rect[1] + rect[3]), (rect[0] + rect[2], rect[1] + rect[3]))  # Bottom
+                pygame.draw.line(screen, (80, 80, 80), (rect[0] + rect[2], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]))  # Right
+            elif frame_shape == Qt.FrameShape.StyledPanel:
+                # OS-styled panel (similar to Panel but with border radius)
+                pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=4)
         
         # Apply CSS-like styles if present
         if hasattr(self, '_styles'):

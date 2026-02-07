@@ -28,7 +28,7 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT (Actualizada)
 [x] Implementar QTreeWidget.scrollToItem.
 [x] Implementar QStatusBar real (showMessage, addPermanentWidget).
 [x] Soporte para Drag & Drop interno (dragEnterEvent/dropEvent en QWidget).
-[/] Implementar setCursor, setWindowFlags, setMinimumSize y setFrameShape funcionales.
+[x] Implementar setCursor, setWindowFlags, setMinimumSize y setFrameShape funcionales.
 
 3. LAYOUTS Y ORGANIZACIÓN
 -------------------------
@@ -60,9 +60,9 @@ LISTA DE PENDIENTES - LIBRERÍA GAMEQT (Actualizada)
 
 --- RESUMEN ---
 Parte 1 (Gráficos): ✅ Completada (8 de 8 items)
-Parte 2 (Widgets): ✅ Completada (15 de 16 items, 1 en progreso)
+Parte 2 (Widgets): ✅ Completada (16 de 16 items)
 Parte 3 (Layouts): ✅ Completada (6 de 6 items)
 Parte 4 (Sistema): ✅ Completada (7 de 7 items)
 Parte 5 (Diálogos): ✅ Completada (6 de 6 items)
 
-TOTAL: 42 de 43 items completados (97%)
+TOTAL: 43 de 43 items completados (100%) 🎉

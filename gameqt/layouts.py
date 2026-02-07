@@ -111,6 +111,12 @@ class QVBoxLayout:
                 else: # AlignLeft
                     x = rect.x + margins[0]
             
+            # Enforce minimum size if set
+            min_size = getattr(item, '_min_size', None)
+            if min_size:
+                w = max(w, min_size[0])
+                h = max(h, min_size[1])
+            
             # Use computed absolute rect for this item
             item_rect = pygame.Rect(x, curr_y, w, h)
             item._rect = item_rect
@@ -193,6 +199,12 @@ class QHBoxLayout:
                 
             y = rect.y + margins[1]
             h = content_h
+            
+            # Enforce minimum size if set
+            min_size = getattr(item, '_min_size', None)
+            if min_size:
+                w = max(w, min_size[0])
+                h = max(h, min_size[1])
             
             # Vertical alignment within the row (simple)
             item_rect = pygame.Rect(curr_x, y, w, h)
@@ -314,6 +326,12 @@ class QGridLayout:
             # Calculate span dimensions
             width = cell_w * info['cs'] + (info['cs'] - 1) * spacing
             height = cell_h * info['rs'] + (info['rs'] - 1) * spacing
+            
+            # Enforce minimum size if set
+            min_size = getattr(w, '_min_size', None)
+            if min_size:
+                width = max(width, min_size[0])
+                height = max(height, min_size[1])
             
             item_rect = pygame.Rect(x, y, width, height)
             w._rect = item_rect
@@ -438,6 +456,12 @@ class QFormLayout:
             
             # Field rect
             if field:
+                # Enforce minimum size if set
+                min_size = getattr(field, '_min_size', None)
+                if min_size:
+                    field_w = max(field_w, min_size[0])
+                    h = max(h, min_size[1])
+                
                 field_rect = pygame.Rect(rect.x + margins[0] + label_w + self._spacing, curr_y, field_w, h)
                 field._rect = field_rect
                 if getattr(field, 'isVisible', lambda: True)():

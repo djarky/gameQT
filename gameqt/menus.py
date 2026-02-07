@@ -155,9 +155,9 @@ class QMenu(QWidget):
         print(f"[QMenu] Showing popup menu at {pos}")
         return None
     def _draw(self, pos):
-        # Draw the menu at the given position
-        # This would render menu items using Pygame
-        pass
+        """Draw the menu at the given position (standalone, not dropdown)."""
+        # Reuse dropdown rendering logic
+        self._draw_dropdown(pos)
     def _draw_dropdown(self, pos):
         screen = pygame.display.get_surface()
         if not screen or not self._actions: return

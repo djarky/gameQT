@@ -167,8 +167,35 @@ class QPainter:
         pygame.draw.rect(self._device, fill_color, r)
 
     def strokeRect(self, rect, color, width=1):
-        # Helper for common Qt-like tasks if needed
-        pass
+        """Draw a rectangle outline without fill."""
+        if not self._device: return
+        
+        # Convert color to pygame format
+        fill_color = color.to_pygame() if hasattr(color, 'to_pygame') else color
+        if isinstance(fill_color, tuple) and len(fill_color) == 4:
+            # Has alpha, use as-is
+            pass
+        elif isinstance(fill_color, tuple) and len(fill_color) == 3:
+            # RGB, add full alpha
+            fill_color = fill_color + (255,)
+        
+        # Access coordinates safely
+        x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
+        y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
+        w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
+        h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
+        
+        # Apply transform
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+        
+        nx, ny = int(x * sx + tx), int(y * sy + ty)
+        nw, nh = int(w * sx), int(h * sy)
+        r = pygame.Rect(nx, ny, nw, nh)
+        
+        # Draw outline only
+        pygame.draw.rect(self._device, fill_color, r, width)
+
 
     def drawRect(self, rect):
         if not self._device: return
@@ -389,14 +416,22 @@ class QTextCursor:
     def select(self, selection_type):
         if selection_type == QTextCursor.SelectionType.Document:
             self._anchor = 0
-            # We don't know the end, so we can't fully implement without doc reference. 
-            # But this is a data object, usually created by a document/edit.
-            # We'll just assume a large number if no doc? Or just set to 0?
-            pass 
+            # If we have a document reference, select to the end
+            if hasattr(self, '_document') and self._document:
+                try:
+                    text = self._document.toPlainText()
+                    self._pos = len(text)
+                except:
+                    # If document doesn't have toPlainText, try to get length another way
+                    self._pos = getattr(self._document, '_text_length', 0)
+            else:
+                # No document reference - select a reasonable default
+                self._pos = 1000  # Arbitrary large number
         elif selection_type == QTextCursor.SelectionType.WordUnderCursor:
              # Placeholder logic for selecting word
              self._anchor = max(0, self._pos - 5)
              self._pos = self._pos + 5
+
              
     def selectionStart(self): return min(self._pos, self._anchor)
     def selectionEnd(self): return max(self._pos, self._anchor)
