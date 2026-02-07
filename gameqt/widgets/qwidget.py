@@ -246,6 +246,7 @@ class QWidget(QObject):
     def _draw(self, pos):
         screen = self._get_screen()
         if screen and self.__class__.__name__ != 'QMainWindow':
+            from ..gui import QColor
             color = (220, 220, 225)
             class_name = self.__class__.__name__
             if "Thumbnail" in class_name: color = (190, 190, 200)
@@ -255,7 +256,8 @@ class QWidget(QObject):
             pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height))
             pygame.draw.rect(screen, (120, 120, 130), (pos.x, pos.y, self._rect.width, self._rect.height), 1)
             if self._rect.width > 50 and self._rect.height > 20:
-                font = pygame.font.SysFont(None, 18)
+                from ..gui import QFont
+                font = QFont(size=18).get_sys_font()
                 txt = font.render(class_name, True, (80, 80, 90))
                 screen.blit(txt, (pos.x + 4, pos.y + 4))
         
@@ -279,36 +281,33 @@ class QWidget(QObject):
                 pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=4)
         
         # Apply CSS-like styles if present
-        if hasattr(self, '_styles'):
-            from ..gui import QColor
+        if hasattr(self, '_stylesheet') and self._stylesheet:
+            # Parse styles only if needed
+            if not hasattr(self, '_parsed_styles') or self._last_stylesheet != self._stylesheet:
+                self._parsed_styles = {}
+                self._last_stylesheet = self._stylesheet
+                for rule in self._stylesheet.split(';'):
+                    if ':' in rule:
+                        k, v = rule.split(':', 1)
+                        self._parsed_styles[k.strip().lower()] = v.strip().lower()
+            
             radius = 0
-            if 'border-radius' in self._styles:
-                try: radius = int(self._styles['border-radius'].replace('px', ''))
-                except (ValueError, AttributeError):  
-                    from ..error_handler import get_logger
-                    get_logger().debug("qwidget.QWidget", f"Failed to parse border-radius: {self._styles.get('border-radius')}")
+            if 'border-radius' in self._parsed_styles:
+                try: radius = int(self._parsed_styles['border-radius'].replace('px', ''))
+                except (ValueError, AttributeError): pass
                 
-            padding = 0
-            if 'padding' in self._styles:
-                try: padding = int(self._styles['padding'].replace('px', ''))
-                except (ValueError, AttributeError):
-                    from ..error_handler import get_logger
-                    get_logger().debug("qwidget.QWidget", f"Failed to parse padding: {self._styles.get('padding')}")
-
-            if 'background-color' in self._styles:
+            if 'background-color' in self._parsed_styles:
                 try: 
-                    color = QColor(self._styles['background-color']).to_pygame()
+                    color = QColor(self._parsed_styles['background-color']).to_pygame()
                     pygame.draw.rect(screen, color, (pos.x, pos.y, self._rect.width, self._rect.height), border_radius=radius)
-                except (ValueError, AttributeError, KeyError) as e:
-                    from ..error_handler import get_logger
-                    get_logger().debug("qwidget.QWidget", f"Failed to draw background-color: {e}")
-            if 'border' in self._styles:
+                except (ValueError, AttributeError, KeyError): pass
+            
+            if 'border' in self._parsed_styles:
                 # Simplistic border parsing
                 border_color = (100, 100, 100)
-                if 'solid' in self._styles['border']:
-                    # Try to find a color in the border string
+                if 'solid' in self._parsed_styles['border']:
                     for c_name in QColor.NAMED_COLORS:
-                        if c_name in self._styles['border']:
+                        if c_name in self._parsed_styles['border']:
                             border_color = QColor.NAMED_COLORS[c_name]
                             break
                 pygame.draw.rect(screen, border_color, (pos.x, pos.y, self._rect.width, self._rect.height), 1, border_radius=radius)
