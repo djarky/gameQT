@@ -8,17 +8,38 @@ class QGraphicsScene(QObject):
     def __init__(self, parent=None):
         super().__init__(parent); self.selectionChanged = Signal(); self.items_list, self._bg_brush, self._scene_rect = [], None, QRectF(0,0,800,600); self._views = []
         self._focus_item = None
+        self._sorted_items = []
+        self._items_dirty = False
+    
     def focusItem(self): return self._focus_item
     def setFocusItem(self, item): 
         if self._focus_item != item:
             self._focus_item = item
             if item: item.setFocus()
     def views(self): return self._views
-    def addItem(self, item): self.items_list.append(item); item._scene = self
-    def removeItem(self, item): (self.items_list.remove(item), setattr(item, '_scene', None)) if item in self.items_list else None
-    def items(self): return sorted(self.items_list, key=lambda i: i.zValue())
+    def addItem(self, item): 
+        self.items_list.append(item); item._scene = self
+        self._items_dirty = True
+        
+    def removeItem(self, item): 
+        if item in self.items_list:
+            self.items_list.remove(item)
+            setattr(item, '_scene', None)
+            self._items_dirty = True
+            
+    def _invalidate_sort(self):
+        self._items_dirty = True
+        
+    def items(self): 
+        if self._items_dirty:
+            self._sorted_items = sorted(self.items_list, key=lambda i: i.zValue())
+            self._items_dirty = False
+        return self._sorted_items
+        
     def selectedItems(self): return [i for i in self.items_list if i._selected]
-    def clear(self): self.items_list = []; self.selectionChanged.emit()
+    def clear(self): 
+        self.items_list = []; self._sorted_items = []; self._items_dirty = False
+        self.selectionChanged.emit()
     def clearSelection(self): [setattr(i, '_selected', False) for i in self.items_list]; self.selectionChanged.emit()
     def setBackgroundBrush(self, brush): self._bg_brush = brush
     def setSceneRect(self, rect): self._scene_rect = rect
@@ -43,7 +64,10 @@ class QGraphicsItem:
         self._rotation = 0.0
     def setPos(self, *args): self._pos = QPointF(*args) if len(args) == 2 else QPointF(args[0])
     def pos(self): return self._pos
-    def setZValue(self, z): self._z = z
+    def setZValue(self, z): 
+        if self._z != z:
+            self._z = z
+            if self._scene: self._scene._invalidate_sort()
     def zValue(self): return self._z
     def setVisible(self, v): self._visible = v
     def isVisible(self): return self._visible
@@ -249,9 +273,14 @@ class QGraphicsView(QWidget):
             m = self._view_transform._m
             painter.setTransform(QTransform(m[0], m[1], m[3], m[4], pos.x + m[6], pos.y + m[7]))
             
+            # Viewport culling: Calculate visible rect in scene coordinates
+            visible_rect = QRectF(self.mapToScene(QPointF(0, 0)), self.mapToScene(QPointF(self._rect.width, self._rect.height)))
+            
             for item in self._scene.items():
                 if item.isVisible():
-                    item.paint(painter, None, self)
+                    # Only paint if item's scene bounding rect intersects visible scene area
+                    if item.sceneBoundingRect().intersects(visible_rect):
+                        item.paint(painter, None, self)
             
             # Draw rubber band
             if self._rubber_band_rect:
