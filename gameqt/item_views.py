@@ -498,7 +498,7 @@ class QListWidget(QAbstractItemView):
         row = (my - margin + getattr(self, '_scroll_y', 0)) // (item_h + margin)
         
         if 0 <= col < cols:
-            idx = row * cols + col
+            idx = int(row * cols + col)
             if 0 <= idx < len(self._items):
                 # Clear previous selection
                 for item in self._items: item._selected = False
