@@ -190,6 +190,6 @@ class QApplication:
                 if hasattr(popup, '_draw_popup_overlay'):
                     popup._draw_popup_overlay()
 
-            if not has_visible and clock.get_time() > 5000: break
+            if not has_visible: break
             pygame.display.flip(); clock.tick(60)
         pygame.quit(); return 0

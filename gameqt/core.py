@@ -431,9 +431,21 @@ class PyGameModalDialog:
         font = pygame.font.SysFont("Arial", 16, bold=True)
         txt = font.render(self.title, True, (50, 50, 60))
         screen.blit(txt, (self.rect.x + 10, self.rect.y + 5))
+        
+        # Close button (X)
+        self.close_btn_rect = pygame.Rect(self.rect.right - 30, self.rect.y, 30, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        if self.close_btn_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, (230, 80, 80), self.close_btn_rect, border_top_right_radius=8)
+        
+        label_x = font.render("×", True, (0, 0, 0))
+        screen.blit(label_x, (self.close_btn_rect.centerx - label_x.get_width()//2, self.close_btn_rect.centery - label_x.get_height()//2))
 
     def handle_event(self, event): 
-        # Hook for custom event processing in dialogs
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if hasattr(self, 'close_btn_rect') and self.close_btn_rect.collidepoint(event.pos):
+                self.running = False
+                self.result = None
         self.event_processed = True
     def handle_key(self, event): 
         if event.key == pygame.K_ESCAPE: self.running = False

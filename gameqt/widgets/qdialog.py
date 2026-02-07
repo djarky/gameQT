@@ -53,6 +53,9 @@ class QDialog(QWidget):
                 if event.type == pygame.QUIT:
                     self._running = False
                 else:
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if hasattr(self, '_close_btn_rect') and self._close_btn_rect.collidepoint(event.pos):
+                            self.reject()
                     # Pass event to this widget (tree). Offset is 0 for top-level.
                     self._handle_event(event, pygame.Vector2(0,0))
             
@@ -76,6 +79,15 @@ class QDialog(QWidget):
             font = pygame.font.SysFont("Arial", 16, bold=True)
             txt = font.render(getattr(self, '_window_title', "Dialog"), True, (50, 50, 60))
             screen.blit(txt, (self._rect.x + 10, self._rect.y + 5))
+            
+            # Close button (X)
+            self._close_btn_rect = pygame.Rect(self._rect.right - 30, self._rect.y, 30, 30)
+            mouse_pos = pygame.mouse.get_pos()
+            if self._close_btn_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (230, 80, 80), self._close_btn_rect, border_top_right_radius=8)
+            
+            label_x = font.render("×", True, (0, 0, 0))
+            screen.blit(label_x, (self._close_btn_rect.centerx - label_x.get_width()//2, self._close_btn_rect.centery - label_x.get_height()//2))
 
             # Children are already positioned relative to (0, 30) by layout arrange call
             self._draw_recursive_children(pygame.Vector2(self._rect.topleft))
@@ -83,6 +95,7 @@ class QDialog(QWidget):
             pygame.display.flip()
             clock.tick(60)
             
+        self.close()
         return self._result
 
     def _draw_recursive_children(self, offset):
