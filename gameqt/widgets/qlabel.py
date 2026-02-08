@@ -97,7 +97,8 @@ class QLabel(QWidget):
             try: text_color = QColor(text_color_str).to_pygame()
             except: pass
 
-        self._line_surfs = [font.render(l, True, text_color) for l in self._display_lines]
+        from ..utils.text_renderer import render_text
+        self._line_surfs = [render_text(l, None, 18, text_color) for l in self._display_lines]
         
         spacing = 5
         self._total_h = sum(surf.get_height() + spacing for surf in self._line_surfs)

@@ -170,21 +170,20 @@ class QPainter:
     def drawText(self, *args):
         if not self._device: return
         # Handle different signatures: drawText(rect, flags, text) or drawText(x, y, text)
+        from ..utils.text_renderer import render_text
         if len(args) == 3:
             if isinstance(args[0], (int, float)):
                 # drawText(x, y, text)
                 x, y, text = args
                 p = self._transform.map(QPointF(x, y))
-                font = pygame.font.SysFont(self._font._family, self._font._size)
                 color = self._pen._color.to_pygame()
-                surface = font.render(str(text), True, color)
+                surface = render_text(str(text), self._font._family, self._font._size, color)
                 self._device.blit(surface, (p.x(), p.y()))
             else:
                 # drawText(rect, flags, text)
                 rect, flags, text = args
-                font = pygame.font.SysFont(self._font._family, self._font._size)
                 color = self._pen._color.to_pygame()
-                surface = font.render(str(text), True, color)
+                surface = render_text(str(text), self._font._family, self._font._size, color)
                 r = rect.toRect() if hasattr(rect, 'toRect') else rect
                 
                 # Alignment logic
@@ -206,7 +205,6 @@ class QPainter:
             # drawText(point, text)
             point, text = args
             p = self._transform.map(point)
-            font = pygame.font.SysFont(self._font._family, self._font._size)
             color = self._pen._color.to_pygame()
-            surface = font.render(str(text), True, color)
+            surface = render_text(str(text), self._font._family, self._font._size, color)
             self._device.blit(surface, (p.x(), p.y()))

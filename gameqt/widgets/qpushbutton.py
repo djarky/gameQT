@@ -58,6 +58,6 @@ class QPushButton(QWidget):
             except: pass
         
         # 3. Draw Text
-        font = QFont(size=18).get_sys_font()
-        txt = font.render(str(self._text), True, text_color)
+        from ..utils.text_renderer import render_text
+        txt = render_text(str(self._text), None, 18, text_color)
         screen.blit(txt, (pos.x + (self._rect.width - txt.get_width())//2, pos.y + (self._rect.height - txt.get_height())//2))

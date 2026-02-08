@@ -1,5 +1,6 @@
 from .qcolor import QColor
 from .qfont import QFont
+from .qfontdatabase import QFontDatabase
 from .qpixmap import QPixmap, QImage
 from .qpainter import QPainter
 from .qpen import QPen
