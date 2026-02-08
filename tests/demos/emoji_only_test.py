@@ -20,19 +20,22 @@ def main():
     
     layout = QVBoxLayout(window)
     
-    # Just emojis, no text
-    label1 = QLabel("🚀🚀🚀🚀🚀")
-    label1.setFont(QFont("Arial", 60))
+    # Text + Emoji clusters to verify sizing/alignment
+    label1 = QLabel("Big 🚀 Middle 🌟 Small ✨")
+    label1.setFont(QFont("Arial", 40))
     label1.setStyleSheet("color: #ff0000; background-color: #ffffcc; border: 2px solid #ccc;")
     layout.addWidget(label1)
     
-    label2 = QLabel("🌟✨🔥🌈🍎")
-    label2.setFont(QFont("Arial", 60))
+    # Complex sequences (ZWJ)
+    # 👨‍👩‍👧‍👦 (Family), 👩🏽‍💻 (Female technologist, skin tone), 🏳️‍🌈 (Rainbow flag)
+    label2 = QLabel("Family: 👨‍👩‍👧‍👦 Jobs: 👩🏽‍💻 Flags: 🏳️‍🌈")
+    label2.setFont(QFont("Arial", 30))
     label2.setStyleSheet("color: #0000ff; background-color: #cceeff; border: 2px solid #ccc;")
     layout.addWidget(label2)
     
-    label3 = QLabel("✅👍🎸⚡💎")
-    label3.setFont(QFont("Arial", 60))
+    # Pure Emojis
+    label3 = QLabel("✅ 👍 🎸 ⚡ 💎 🔥 🌈 🍎 🍕 🍔")
+    label3.setFont(QFont("Arial", 50))
     label3.setStyleSheet("color: #008800; background-color: #eeffee; border: 2px solid #ccc;")
     layout.addWidget(label3)
     
