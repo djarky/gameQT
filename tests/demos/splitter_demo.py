@@ -1,7 +1,8 @@
+
 import sys
 import os
 
-# Ensure gameqt is in path
+# Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from gameqt import QApplication, QSplitter, QWidget, QVBoxLayout, QHBoxLayout, QLabel, Qt, QColor
@@ -9,63 +10,52 @@ from gameqt import QApplication, QSplitter, QWidget, QVBoxLayout, QHBoxLayout, Q
 def main():
     app = QApplication(sys.argv)
     
-    # Main Window
-    main_window = QWidget()
-    main_window.resize(800, 600)
-    main_window.setWindowTitle("QSplitter Interactive Demo")
+    # Create main window
+    from gameqt.widgets import QMainWindow
+    window = QMainWindow()
+    window.setWindowTitle("Splitter Demo")
+    window.resize(800, 600)
     
-    layout = QVBoxLayout(main_window)
-    layout.setContentsMargins(10, 10, 10, 10)
-    layout.setSpacing(10)
+    # Create central widget
+    central_widget = QWidget()
+    window.setCentralWidget(central_widget)
     
-    title = QLabel("Try to drag the space between the colored panels!", main_window)
-    layout.addWidget(title)
+    # Main layout
+    main_layout = QVBoxLayout(central_widget)
     
     # Horizontal Splitter
-    splitter_h = QSplitter(Qt.Orientation.Horizontal)
+    h_splitter = QSplitter(Qt.Orientation.Horizontal)
     
-    # Left Widget (Red)
+    # Add some widgets to splitter
     w1 = QWidget()
-    w1.setStyleSheet("background-color: #FFCDD2; border: 1px solid #E57373; border-radius: 4px;")
-    l1 = QVBoxLayout(w1); l1.addWidget(QLabel("Left Panel"))
+    w1.setStyleSheet("background-color: #FFCCCC; border: 1px solid red;")
+    l1 = QVBoxLayout(w1)
+    lbl1 = QLabel("Left Panel")
+    l1.addWidget(lbl1)
     
-    # Middle Widget (Green)
     w2 = QWidget()
-    w2.setStyleSheet("background-color: #C8E6C9; border: 1px solid #81C784; border-radius: 4px;")
-    l2 = QVBoxLayout(w2); l2.addWidget(QLabel("Middle Panel"))
+    w2.setStyleSheet("background-color: #CCFFCC; border: 1px solid green;")
+    l2 = QVBoxLayout(w2)
+    lbl2 = QLabel("Middle Panel")
+    l2.addWidget(lbl2)
     
-    # Right Widget (Blue)
     w3 = QWidget()
-    w3.setStyleSheet("background-color: #BBDEFB; border: 1px solid #64B5F6; border-radius: 4px;")
-    l3 = QVBoxLayout(w3); l3.addWidget(QLabel("Right Panel"))
+    w3.setStyleSheet("background-color: #CCCCFF; border: 1px solid blue;")
+    l3 = QVBoxLayout(w3)
+    lbl3 = QLabel("Right Panel")
+    l3.addWidget(lbl3)
     
-    splitter_h.addWidget(w1)
-    splitter_h.addWidget(w2)
-    splitter_h.addWidget(w3)
+    h_splitter.addWidget(w1)
+    h_splitter.addWidget(w2)
+    h_splitter.addWidget(w3)
     
-    # Set initial sizes (optional)
-    splitter_h.setSizes([100, 200, 100])
+    # Set initial sizes
+    h_splitter.setSizes([200, 400, 200])
     
-    layout.addWidget(splitter_h)
+    main_layout.addWidget(h_splitter)
     
-    # Vertical Splitter section
-    splitter_v = QSplitter(Qt.Orientation.Vertical)
-    
-    top = QWidget()
-    top.setStyleSheet("background-color: #FFF9C4; border: 1px solid #FFF176;")
-    l_top = QVBoxLayout(top); l_top.addWidget(QLabel("Top"))
-    
-    bottom = QWidget()
-    bottom.setStyleSheet("background-color: #E1BEE7; border: 1px solid #BA68C8;")
-    l_bottom = QVBoxLayout(bottom); l_bottom.addWidget(QLabel("Bottom"))
-    
-    splitter_v.addWidget(top)
-    splitter_v.addWidget(bottom)
-    
-    layout.addWidget(splitter_v)
-    
-    main_window.show()
-    sys.exit(app.exec())
+    window.show()
+    return app.exec()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
