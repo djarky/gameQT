@@ -28,14 +28,23 @@ for path in REGULAR_FONTS:
         _regular_font_path = path
         break
 
+# Caches for performance optimization
+_variant_cache = {}  # (path, bold, italic) -> resolved_path
+_font_cache = {}     # (path, target_h) -> ImageFont
+_render_cache = {}   # (text, font_family, font_size, color_tuple, bold, italic) -> pygame.Surface
+
 def has_emoji(text):
     """Check if text contains high-surrogate emojis (U+10000+)."""
     return any(ord(c) > 0xFFFF for c in text)
 
 def get_calibrated_font(path, target_h):
-    """Binary search for exact pixel height (ascent + descent)."""
+    """Binary search for exact pixel height (ascent + descent). Cached."""
     if not path or not os.path.exists(path): return ImageFont.load_default()
     target_h = max(1, int(target_h))
+    
+    key = (path, target_h)
+    if key in _font_cache: return _font_cache[key]
+    
     low, high = 1, 500
     best_f = None
     for _ in range(10):
@@ -47,21 +56,28 @@ def get_calibrated_font(path, target_h):
             h = asc + desc
             if h < target_h: low = mid + 1; best_f = f
             elif h > target_h: high = mid - 1
-            else: return f
+            else: 
+                _font_cache[key] = f
+                return f
         except: 
             low = mid + 1
             if low > high: break
     
-    if best_f: return best_f
-    try:
-        return ImageFont.truetype(path, target_h)
-    except:
-        return ImageFont.load_default()
+    res = best_f
+    if not res:
+        try: res = ImageFont.truetype(path, target_h)
+        except: res = ImageFont.load_default()
+    
+    _font_cache[key] = res
+    return res
 
 def find_font_variant(path, bold=False, italic=False):
-    """Finds the bold/italic variant for a given font path."""
+    """Finds the bold/italic variant for a given font path. Cached."""
     if not path or not os.path.exists(path): return path
     if not bold and not italic: return path
+    
+    key = (path, bold, italic)
+    if key in _variant_cache: return _variant_cache[key]
     
     dir_name = os.path.dirname(path)
     base_name = os.path.basename(path)
@@ -73,9 +89,9 @@ def find_font_variant(path, bold=False, italic=False):
     elif bold: suffixes = ["-Bold", "Bold", "B"]
     elif italic: suffixes = ["-Italic", "Italic", "-Oblique", "Oblique", "I"]
     
+    res = path
     # Try basic substitutions
     for s in suffixes:
-        # Replaces 'Regular', 'Sans', etc. with the suffix
         test_names = [
             f"{name}{s}{ext}",
             f"{name.replace('Regular', '')}{s}{ext}",
@@ -83,33 +99,36 @@ def find_font_variant(path, bold=False, italic=False):
         ]
         for t in test_names:
             p = os.path.join(dir_name, t)
-            if os.path.exists(p): return p
+            if os.path.exists(p): 
+                res = p
+                break
+        if res != path: break
             
-    # Fallback to scanning the directory for fuzzy match
-    try:
-        keywords = []
-        if bold: keywords.append("bold")
-        if italic: keywords.append("italic")
-        for f in os.listdir(dir_name):
-            f_low = f.lower()
-            if all(k in f_low for k in keywords) and ext.lower() in f_low:
-                # Also try to match familial prefix if possible
-                if name[:4].lower() in f_low:
-                     return os.path.join(dir_name, f)
-    except: pass
+    if res == path:
+        # Fallback to scanning the directory for fuzzy match
+        try:
+            keywords = []
+            if bold: keywords.append("bold")
+            if italic: keywords.append("italic")
+            for f in os.listdir(dir_name):
+                f_low = f.lower()
+                if all(k in f_low for k in keywords) and ext.lower() in f_low:
+                    if name[:4].lower() in f_low:
+                         res = os.path.join(dir_name, f)
+                         break
+        except: pass
     
-    return path
+    _variant_cache[key] = res
+    return res
 
 def get_text_metrics(text, font_family, font_size, bold=False, italic=False):
-    """Returns (width, height, ascent, descent) using Pillow for consistency. Handles multiline."""
+    """Returns (width, height, ascent, descent). Multiline aware."""
     from ..gui.qfontdatabase import QFontDatabase
     pil_reg_font_path = _regular_font_path
     custom_path = QFontDatabase.getFontPath(font_family)
     if custom_path: pil_reg_font_path = custom_path
     
-    # Resolve variant
     pil_reg_font_path = find_font_variant(pil_reg_font_path, bold, italic)
-    
     reg_f = get_calibrated_font(pil_reg_font_path, font_size)
     r_asc, r_desc = reg_f.getmetrics()
     target_h = r_asc + r_desc
@@ -148,7 +167,13 @@ def get_text_metrics(text, font_family, font_size, bold=False, italic=False):
     return int(max_w), int(total_h), r_asc, r_desc
 
 def render_text(text, font_family, font_size, color, bold=False, italic=False):
-    """Renders text to a pygame surface using Pillow. Handles multiline."""
+    """Renders text to a pygame surface using Pillow. Fully cached."""
+    # Ensure color is hashable tuple
+    color_tup = tuple(color) if hasattr(color, '__iter__') else color
+    cache_key = (str(text), font_family, font_size, color_tup, bold, italic)
+    if cache_key in _render_cache:
+        return _render_cache[cache_key]
+
     try:
         w, h, asc, desc = get_text_metrics(text, font_family, font_size, bold, italic)
         from ..gui.qfontdatabase import QFontDatabase
@@ -201,7 +226,9 @@ def render_text(text, font_family, font_size, color, bold=False, italic=False):
             
             curr_y += target_h + spacing
             
-        return pygame.image.fromstring(surf_img.tobytes("raw", "RGBA"), surf_img.size, "RGBA")
+        res = pygame.image.fromstring(surf_img.tobytes("raw", "RGBA"), surf_img.size, "RGBA")
+        _render_cache[cache_key] = res
+        return res
     except Exception as e:
         font = pygame.font.SysFont(None, font_size)
         font.set_bold(bold)
