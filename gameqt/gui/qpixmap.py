@@ -22,12 +22,20 @@ class QImage:
     def isNull(self): return self.surface is None
 
 class QPixmap:
+    _image_cache = {}
+
     def __init__(self, arg=None, h=None):
         if h is not None:
              self.surface = pygame.Surface((arg, h), pygame.SRCALPHA)
         elif isinstance(arg, str): 
-            try: self.surface = pygame.image.load(arg).convert_alpha()
-            except: self.surface = None
+            if arg in QPixmap._image_cache:
+                self.surface = QPixmap._image_cache[arg]
+            else:
+                try: 
+                    self.surface = pygame.image.load(arg).convert_alpha()
+                    QPixmap._image_cache[arg] = self.surface
+                except: 
+                    self.surface = None
         elif isinstance(arg, pygame.Surface): self.surface = arg
         elif isinstance(arg, QSize): self.surface = pygame.Surface((arg.width(), arg.height()), pygame.SRCALPHA)
         else: self.surface = None

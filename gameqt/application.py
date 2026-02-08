@@ -42,7 +42,18 @@ class QApplication:
         from .utils import QSSParser
         self._stylesheet = ss
         QApplication._global_style = QSSParser.parse(ss)
-        for win in self._windows: win.update()
+        
+        # Invalidate ALL widget style caches globally
+        for win in self._windows:
+            self._invalidate_all_styles(win)
+            win.update()
+            
+    def _invalidate_all_styles(self, widget):
+        if hasattr(widget, '_style_cache'):
+            widget._style_cache.clear()
+        if hasattr(widget, '_children'):
+            for child in widget._children:
+                self._invalidate_all_styles(child)
         
     def styleSheet(self):
         return self._stylesheet
@@ -70,7 +81,7 @@ class QApplication:
         clock = pygame.time.Clock()
         dragging = True
         result = 0
-        from .core import Qt, QDropEvent
+        from .core import Qt
         
         # Cursor?
         # pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND) 

@@ -142,42 +142,55 @@ class QWidget(QObject):
                 k, v = rule.split(':', 1)
                 self._parsed_styles[k.strip().lower()] = v.strip().lower()
         
+        # Invalidate style cache
+        if hasattr(self, '_style_cache'): self._style_cache.clear()
+
         # Notify of style change for dynamic updates (fonts, etc.)
         if hasattr(self, '_calculate_natural_size'):
             self._calculate_natural_size()
         self.update()
 
     def _get_style_property(self, prop, pseudo=None):
-        """Resolves a style property checking local, parent, and global stylesheets with MRO support."""
+        """Resolves a style property checking local, parent, and global stylesheets. Cached."""
+        if not hasattr(self, '_style_cache'): self._style_cache = {}
+        cache_key = (prop, pseudo)
+        if cache_key in self._style_cache:
+            return self._style_cache[cache_key]
+
         inheritable = ['font-size', 'font-family', 'font-weight', 'color', 'text-align']
         
-        # Walk up the parent hierarchy to find a local stylesheet rule (Qt-like inheritance)
+        # 1. Walk up the parent hierarchy for local overrides or inherited properties
         curr = self
+        res = None
         while curr:
             if hasattr(curr, '_parsed_styles') and curr._parsed_styles:
-                # If we are looking at self, always check
-                # If we are looking at a parent, only check inheritable properties
                 if (curr == self or prop in inheritable) and prop in curr._parsed_styles:
-                    return curr._parsed_styles[prop]
+                    res = curr._parsed_styles[prop]
+                    break
             curr = curr._parent
 
-        # 2. Global stylesheet resolution with MRO traversal
-        app_style = QApplication._global_style
-        if not app_style: return None
-        
-        for cls in self.__class__.mro():
-            cls_name = cls.__name__
-            if cls_name == 'object': break
-            
-            selectors = []
-            if pseudo: selectors.append(f"{cls_name}:{pseudo}")
-            selectors.append(cls_name)
-            
-            for sel in selectors:
-                if sel in app_style and prop in app_style[sel]:
-                    return app_style[sel][prop]
+        if res is None:
+            # 2. Global stylesheet resolution with MRO traversal
+            app_style = QApplication._global_style
+            if app_style:
+                for cls in self.__class__.mro():
+                    cls_name = cls.__name__
+                    if cls_name == 'object': break
+                    
+                    selectors = []
+                    if pseudo: selectors.append(f"{cls_name}:{pseudo}")
+                    selectors.append(cls_name)
+                    
+                    found = False
+                    for sel in selectors:
+                        if sel in app_style and prop in app_style[sel]:
+                            res = app_style[sel][prop]
+                            found = True
+                            break
+                    if found: break
                 
-        return None
+        self._style_cache[cache_key] = res
+        return res
         # Basic parsing
         self._styles = {}
         for rule in ss.split(';'):
