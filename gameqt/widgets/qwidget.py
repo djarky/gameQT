@@ -6,7 +6,9 @@ from ..application import QApplication
 
 class QWidget(QObject):
     def __init__(self, parent=None):
+        from ..gui import QFont
         super().__init__(parent); self._rect, self._visible, self._layout, self._stylesheet, self._screen = pygame.Rect(0, 0, 100, 100), False, None, "", None
+        self._font = QFont()
         self._parent = None # Initialized by _set_parent
         self._children = []
         self._set_parent(parent)
@@ -56,6 +58,16 @@ class QWidget(QObject):
     def setCursor(self, cursor): 
         """Set the cursor for this widget."""
         self._cursor = cursor
+    def setFont(self, font):
+        """Set the font for this widget."""
+        self._font = font
+        if hasattr(self, 'update'): self.update()
+    def font(self):
+        """Returns the font for this widget."""
+        if not hasattr(self, '_font'):
+            from ..gui import QFont
+            self._font = QFont()
+        return self._font
     def setWindowFlags(self, flags):
         """Set window flags (Dialog, FramelessWindowHint, etc.)."""
         self._window_flags = flags

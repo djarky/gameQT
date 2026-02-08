@@ -63,7 +63,6 @@ def render_text(text, font_family, font_size, color):
         except:
             pil_emoji_font = ImageFont.load_default()
             
-        # Resolve regular font
         pil_reg_font = None
         custom_path = QFontDatabase.getFontPath(font_family)
         if custom_path:
@@ -77,43 +76,60 @@ def render_text(text, font_family, font_size, color):
             except:
                 pil_reg_font = ImageFont.load_default()
 
-        # Measure total width
+        # Measure characters and offsets
         dummy_img = Image.new('RGBA', (1, 1))
         draw = ImageDraw.Draw(dummy_img)
-        
-        total_w = 0
-        heights = []
-        
+
         chars_info = []
+        total_w = 0
+        max_h = 0
+        min_top = 0
+
         for char in text:
-            # Decide which font to use for this character
-            is_emoji = ord(char) > 0xFFFF or (0x2000 <= ord(char) <= 0x32FF)
-            f = pil_emoji_font if is_emoji else pil_reg_font
+            codepoint = ord(char)
+            # Try to determine if emoji font has a better glyph than regular font
+            has_emoji_glyph = False
+            if _emoji_font_path:
+                try:
+                    mask = pil_emoji_font.getmask(char)
+                    if mask.getbbox():
+                        has_emoji_glyph = True
+                except: pass
+
+            # Decision: use emoji font if it has a glyph AND it's either in emoji range or reg font doesn't have it
+            is_emoji_range = (codepoint > 0xFFFF) or (0x2300 <= codepoint <= 0x32FF) or (0x203C <= codepoint <= 0x21AA)
+            use_emoji = has_emoji_glyph and (is_emoji_range or codepoint > 127)
+            
+            f = pil_emoji_font if use_emoji else pil_reg_font
+            if not f: f = pil_emoji_font if pil_emoji_font else pil_reg_font
             
             w = draw.textlength(char, font=f)
-            bbox = draw.textbbox((0, 0), char, font=f, embedded_color=is_emoji)
+            bbox = draw.textbbox((0, 0), char, font=f, embedded_color=use_emoji)
+            h = bbox[3] - bbox[1]
             
-            chars_info.append((char, f, is_emoji, total_w))
+            chars_info.append({
+                'char': char, 'font': f, 'is_emoji': use_emoji, 'x': total_w,
+                'offset_y': bbox[1], 'w': w, 'h': h
+            })
             total_w += w
-            heights.append(bbox[3])
+            max_h = max(max_h, h)
+            min_top = min(min_top, bbox[1])
             
-        total_h = max(heights) if heights else actual_size
+            # print(f"[DEBUG-CHAR] '{char}' (U+{codepoint:04X}) -> {'Emoji' if use_emoji else 'Reg'} Font")
 
-        # Create image
-        img = Image.new('RGBA', (int(total_w) + 10, int(total_h) + 10), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+        # Canvas size: apply some padding
+        padding = 5
+        img_w = int(total_w) + padding * 2
+        img_h = int(max_h - min_top) + padding * 2
         
-        for char, f, is_emoji, x_pos in chars_info:
-            draw.text((x_pos, 0), char, font=f, fill=color, embedded_color=is_emoji)
+        img = Image.new('RGBA', (max(1, img_w), max(1, img_h)), (0, 0, 0, 0))
+        draw_pil = ImageDraw.Draw(img)
+        
+        for ch in chars_info:
+            draw_pil.text((ch['x'] + padding, -min_top + padding), ch['char'], font=ch['font'], fill=color, embedded_color=ch['is_emoji'])
 
         # Convert to Pygame
-        raw_data = img.tobytes("raw", "RGBA")
-        pygame_surf = pygame.image.fromstring(raw_data, img.size, "RGBA")
-        
-        # Scale back
-        final_w, final_h = img.size[0] // render_scale, img.size[1] // render_scale
-        pygame_surf = pygame.transform.smoothscale(pygame_surf, (final_w, final_h))
-        
+        pygame_surf = pygame.image.fromstring(img.tobytes("raw", "RGBA"), img.size, "RGBA")
         return pygame_surf
     except Exception as e:
         print(f"Emoji rendering failed: {e}")

@@ -57,7 +57,8 @@ class QLabel(QWidget):
              # Strip other tags but keep content
              text = re.sub(r'<[^>]+>', '', text)
         
-        font = pygame.font.SysFont(None, 18)
+        f = self.font()
+        font = pygame.font.SysFont(f.family() if f.family() != "Arial" else None, f.pointSize())
         raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
         
         self._display_lines = []
@@ -98,7 +99,8 @@ class QLabel(QWidget):
             except: pass
 
         from ..utils.text_renderer import render_text
-        self._line_surfs = [render_text(l, None, 18, text_color) for l in self._display_lines]
+        f = self.font()
+        self._line_surfs = [render_text(l, f.family(), f.pointSize(), text_color) for l in self._display_lines]
         
         spacing = 5
         self._total_h = sum(surf.get_height() + spacing for surf in self._line_surfs)

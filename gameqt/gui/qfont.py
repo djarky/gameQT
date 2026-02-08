@@ -6,6 +6,7 @@ class QFont:
     def __init__(self, family="Arial", size=12): self._family, self._size = family, size
     def setPointSize(self, size): self._size = size
     def pointSize(self): return self._size
+    def family(self): return self._family
     
     def get_sys_font(self):
         from .qfontdatabase import QFontDatabase
