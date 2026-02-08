@@ -63,10 +63,32 @@ class QWidget(QObject):
         self._font = font
         if hasattr(self, 'update'): self.update()
     def font(self):
-        """Returns the font for this widget."""
+        """Returns the font for this widget, respecting QSS properties."""
         if not hasattr(self, '_font'):
             from ..gui import QFont
             self._font = QFont()
+        
+        # Check for QSS overrides
+        fs = self._get_style_property('font-size')
+        if fs:
+            try:
+                # Handle '12px', '12pt', or just '12'
+                size = int(re.search(r'\d+', fs).group())
+                self._font.setPointSize(size)
+            except: pass
+            
+        ff = self._get_style_property('font-family')
+        if ff:
+            # Strip quotes if present
+            ff = ff.strip("'\"")
+            self._font._family = ff
+            
+        fw = self._get_style_property('font-weight')
+        if fw:
+            bold = 'bold' in fw.lower() or any(x in fw for x in ['600','700','800','900'])
+            if hasattr(self._font, 'setBold'): self._font.setBold(bold)
+            elif hasattr(self._font, '_bold'): self._font._bold = bold # Fallback if setBold missing
+            
         return self._font
     def setWindowFlags(self, flags):
         """Set window flags (Dialog, FramelessWindowHint, etc.)."""
@@ -119,18 +141,23 @@ class QWidget(QObject):
             if ':' in rule:
                 k, v = rule.split(':', 1)
                 self._parsed_styles[k.strip().lower()] = v.strip().lower()
+        
+        # Notify of style change for dynamic updates (fonts, etc.)
+        if hasattr(self, '_calculate_natural_size'):
+            self._calculate_natural_size()
         self.update()
 
     def _get_style_property(self, prop, pseudo=None):
         """Resolves a style property checking local, parent, and global stylesheets with MRO support."""
+        inheritable = ['font-size', 'font-family', 'font-weight', 'color', 'text-align']
+        
         # Walk up the parent hierarchy to find a local stylesheet rule (Qt-like inheritance)
         curr = self
         while curr:
             if hasattr(curr, '_parsed_styles') and curr._parsed_styles:
-                # Note: This limited implementation check ONLY the direct widget style rules.
-                # In full QSS, the parent's stylesheet can contain selectors for children.
-                # Here we check if the current widget has a direct style property set.
-                if curr == self and prop in curr._parsed_styles:
+                # If we are looking at self, always check
+                # If we are looking at a parent, only check inheritable properties
+                if (curr == self or prop in inheritable) and prop in curr._parsed_styles:
                     return curr._parsed_styles[prop]
             curr = curr._parent
 

@@ -30,8 +30,16 @@ class QRadioButton(QWidget):
         pygame.draw.circle(screen, (100, 100, 110), (center_x, center_y), radius, 1)
         if self._checked:
             pygame.draw.circle(screen, (100, 150, 240), (center_x, center_y), radius - 3)
-        font = pygame.font.SysFont(None, 18)
-        txt = font.render(self._text, True, (20, 20, 20))
+        from ..gui import QColor
+        text_color_str = self._get_style_property('color')
+        text_color = (20, 20, 20)
+        if text_color_str:
+            try: text_color = QColor(text_color_str).to_pygame()
+            except: pass
+            
+        f = self.font()
+        from ..utils.text_renderer import render_text
+        txt = render_text(self._text, f.family(), f.pointSize(), text_color, f.bold(), f.italic())
         screen.blit(txt, (pos.x + radius*2 + 8, pos.y + (self._rect.height - txt.get_height())//2))
     def mousePressEvent(self, ev):
         self.setChecked(True)

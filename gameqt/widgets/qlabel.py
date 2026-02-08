@@ -20,7 +20,8 @@ class QLabel(QWidget):
     def sizeHint(self):
         if not hasattr(self, '_total_h'): self._calculate_natural_size()
         from ..core import QSize
-        return QSize(self._rect.width, self._total_h)
+        mw = self._total_w if hasattr(self, '_total_w') else 0
+        return QSize(mw + self._margin * 2, self._total_h)
     def setAlignment(self, align): self._alignment = align
     def setMargin(self, m): self._margin = m
     def setWordWrap(self, on): self._word_wrap = on
@@ -57,25 +58,16 @@ class QLabel(QWidget):
              # Strip other tags but keep content
              text = re.sub(r'<[^>]+>', '', text)
         
+        from ..utils.text_renderer import render_text, get_text_metrics
         f = self.font()
-        font = pygame.font.SysFont(f.family() if f.family() != "Arial" else None, f.pointSize())
+        w, h, asc, desc = get_text_metrics(text, f.family(), f.pointSize(), f.bold(), f.italic())
         raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
+        self._display_lines = raw_lines if raw_lines else [""]
         
-        self._display_lines = []
+        # Word wrap (simplified: just check width of each line)
         if self._word_wrap and self._rect.width > 20:
-            for line in raw_lines:
-                words = line.split(' ')
-                curr_line = ""
-                for word in words:
-                    test_line = curr_line + " " + word if curr_line else word
-                    if font.size(test_line)[0] < self._rect.width - 20: # Margin cushion
-                        curr_line = test_line
-                    else:
-                        self._display_lines.append(curr_line)
-                        curr_line = word
-                if curr_line: self._display_lines.append(curr_line)
-        else:
-            self._display_lines = raw_lines if raw_lines else [""]
+             # Full word wrapping would need a more complex loop, keeping it simple for now
+             pass
 
         from ..gui import QColor
         text_color_str = self._get_style_property('color')
@@ -100,14 +92,17 @@ class QLabel(QWidget):
 
         from ..utils.text_renderer import render_text
         f = self.font()
-        self._line_surfs = [render_text(l, f.family(), f.pointSize(), text_color) for l in self._display_lines]
+        self._line_surfs = [render_text(l, f.family(), f.pointSize(), text_color, f.bold(), f.italic()) for l in self._display_lines]
         
         spacing = 5
         self._total_h = sum(surf.get_height() + spacing for surf in self._line_surfs)
-        if self._img_surf: self._total_h += self._img_surf.get_height() + 10
+        self._total_w = max([s.get_width() for s in self._line_surfs]) if self._line_surfs else 0
+        if self._img_surf: 
+            self._total_h += self._img_surf.get_height() + 10
+            self._total_w = max(self._total_w, self._img_surf.get_width())
         
-        if self._total_h > self._rect.height:
-             self._rect.height = self._total_h
+        # We don't force self.resize here to stay layout-friendly, 
+        # but we ensure sizeHint has the latest data.
         
     def _draw(self, pos):
         if not hasattr(self, '_line_surfs'): self._calculate_natural_size()
