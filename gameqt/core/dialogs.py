@@ -90,14 +90,30 @@ class PyGameModalDialog:
         txt = font.render(self.title, True, (50, 50, 60))
         screen.blit(txt, (self.rect.x + 10, self.rect.y + 5))
         
-        # Close button (X)
-        self.close_btn_rect = pygame.Rect(self.rect.right - 30, self.rect.y, 30, 30)
-        mouse_pos = pygame.mouse.get_pos()
-        if self.close_btn_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (230, 80, 80), self.close_btn_rect, border_top_right_radius=8)
+        # Close button (macOS-style circle)
+        circle_radius = 9
+        circle_center = (self.rect.right - 18, self.rect.y + 15)
+        self.close_btn_rect = pygame.Rect(0, 0, 30, 30)
+        self.close_btn_rect.center = circle_center
         
-        label_x = font.render("×", True, (0, 0, 0))
-        screen.blit(label_x, (self.close_btn_rect.centerx - label_x.get_width()//2, self.close_btn_rect.centery - label_x.get_height()//2))
+        mouse_pos = pygame.mouse.get_pos()
+        is_hover = self.close_btn_rect.collidepoint(mouse_pos)
+        
+        # Colors: Normal (pinkish/opaque), Hover (deep red/tinto)
+        circle_bg = (170, 0, 0) if is_hover else (255, 180, 180)
+        pygame.draw.circle(screen, circle_bg, circle_center, circle_radius)
+        if is_hover:
+            pygame.draw.circle(screen, (120, 0, 0), circle_center, circle_radius, 1)
+
+        # Draw symmetrical X inside circle (always visible, white)
+        s = 4 # half-size of the cross
+        cross_color = (255, 255, 255)
+        pygame.draw.line(screen, cross_color, 
+                         (circle_center[0] - s, circle_center[1] - s),
+                         (circle_center[0] + s, circle_center[1] + s), 2)
+        pygame.draw.line(screen, cross_color, 
+                         (circle_center[0] + s, circle_center[1] - s),
+                         (circle_center[0] - s, circle_center[1] + s), 2)
 
     def handle_event(self, event): 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
