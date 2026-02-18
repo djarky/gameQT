@@ -171,13 +171,12 @@ class QTreeWidget(QAbstractItemView):
         def draw_item(item, level, y_offset):
             nonlocal curr_y
             
+            item_h = 22
             # Visibility culling
             if curr_y + item_h < pos.y + header_h:
-                if getattr(item, '_expanded', True):
-                    curr_y += item_h 
+                if item.isExpanded():
                     for i in range(item.childCount()):
                         draw_item(item.child(i), level + 1, y_offset)
-                    curr_y -= item_h
                 curr_y += item_h
                 return
 
@@ -186,7 +185,7 @@ class QTreeWidget(QAbstractItemView):
             is_selected = getattr(item, '_selected', False)
             
             # Draw Columns
-            indent = level * 15
+            indent = level * 16
             
             for c, _ in enumerate(labels):
                 col_w = self._header.sectionSize(c, self._rect.width, len(labels))
@@ -207,55 +206,64 @@ class QTreeWidget(QAbstractItemView):
                     index = MockIndex(item, c)
                     delegate.paint(painter, option, index)
                 else:
-                    # Default drawing - Inline implementation
+                    # Default drawing
                     if is_selected:
-                        # Check selection color
-                        sel_bg_str = self._get_style_property('background-color', pseudo='selected')
-                        sel_color_str = self._get_style_property('color', pseudo='selected')
-                        
-                        if not sel_bg_str or not sel_color_str:
-                             if app_style and "QTreeWidget::item:selected" in app_style:
-                                 if not sel_bg_str: sel_bg_str = app_style["QTreeWidget::item:selected"].get('background-color')
-                                 if not sel_color_str: sel_color_str = app_style["QTreeWidget::item:selected"].get('color')
-                        
                         sel_bg = (0, 120, 215)
+                        # Try to resolve from QSS
+                        sel_bg_str = self._get_style_property('background-color', pseudo='selected', sub_element='item')
                         if sel_bg_str:
                             try: sel_bg = QColor(sel_bg_str).to_pygame()
                             except: pass
-                            
-                        sel_color = (255, 255, 255)
-                        if sel_color_str:
-                            try: sel_color = QColor(sel_color_str).to_pygame()
-                            except: pass
-                        else:
-                            # Fallback: if background is light, use dark text
-                            if (sel_bg[0]*0.299 + sel_bg[1]*0.587 + sel_bg[2]*0.114) > 186:
-                                sel_color = (0, 0, 0)
-
                         pygame.draw.rect(screen, sel_bg, cell_rect)
-                        text_color = sel_color
+                        text_color = (255, 255, 255)
                     else:
-                        text_color_str = self._get_style_property('color')
                         text_color = (30, 30, 30)
-                        if text_color_str:
-                            try: text_color = QColor(text_color_str).to_pygame()
-                            except: pass
-                        
-                        # Alternating logic
                         if (curr_y - pos.y - header_h) // item_h % 2 == 1:
-                             # Darker variant of background if possible? For now, fixed neutral
-                             pygame.draw.rect(screen, (max(0, header_bg[0]-5), max(0, header_bg[1]-5), max(0, header_bg[2]-2)), cell_rect)
+                            pygame.draw.rect(screen, (244, 244, 247), cell_rect)
+                    
+                    x_off = 5
+                    if c == 0:
+                        # 1. Draw Expansion Arrow
+                        if item.childCount() > 0:
+                            arrow_rect = pygame.Rect(col_x + indent + 2, curr_y + 4, 12, 12)
+                            arrow_color = (100, 100, 110)
+                            if item.isExpanded():
+                                # Down arrow
+                                pygame.draw.polygon(screen, arrow_color, [
+                                    (arrow_rect.centerx - 4, arrow_rect.centery - 2),
+                                    (arrow_rect.centerx + 4, arrow_rect.centery - 2),
+                                    (arrow_rect.centerx, arrow_rect.centery + 3)
+                                ])
+                            else:
+                                # Right arrow
+                                pygame.draw.polygon(screen, arrow_color, [
+                                    (arrow_rect.centerx - 2, arrow_rect.centery - 4),
+                                    (arrow_rect.centerx - 2, arrow_rect.centery + 4),
+                                    (arrow_rect.centerx + 3, arrow_rect.centery)
+                                ])
+                        x_off = 20 + indent
+
+                    # 2. Draw Checkbox if checkable (based on data presence)
+                    check_state = item.checkState(c)
+                    if check_state is not None:
+                         # Default checkable logic for specific columns or if explicitly set
+                         box_size = 14
+                         box_x = col_x + x_off
+                         box_y = curr_y + (item_h - box_size) // 2
+                         pygame.draw.rect(screen, (255, 255, 255), (box_x, box_y, box_size, box_size))
+                         pygame.draw.rect(screen, (120, 120, 130), (box_x, box_y, box_size, box_size), 1)
+                         if check_state == Qt.CheckState.Checked:
+                             pygame.draw.line(screen, (0, 150, 0), (box_x+3, box_y+box_size//2), (box_x+box_size//2, box_y+box_size-3), 2)
+                             pygame.draw.line(screen, (0, 150, 0), (box_x+box_size//2, box_y+box_size-3), (box_x+box_size-3, box_y+3), 2)
+                         x_off += box_size + 5
 
                     txt_val = item.text(c)
                     if txt_val:
                         txt_surf = font.render(str(txt_val), True, text_color)
-                        # Indent only for col 0
-                        x_off = 5 + indent if c == 0 else 5
                         screen.blit(txt_surf, (col_x + x_off, curr_y + (item_h - txt_surf.get_height()) // 2))
 
             curr_y += item_h
-            
-            if getattr(item, '_expanded', True):
+            if item.isExpanded():
                 for i in range(item.childCount()):
                     draw_item(item.child(i), level + 1, y_offset)
 
@@ -286,23 +294,76 @@ class QTreeWidget(QAbstractItemView):
 
     def mousePressEvent(self, ev):
         mx, my = ev.pos().x(), ev.pos().y()
+        
+        # 1. Handle Context Menu
+        if ev.button() == Qt.MouseButton.RightButton:
+            self.customContextMenuRequested.emit(ev.pos())
+            return
+
         item = self.itemAt(mx, my)
-        if item:
+        if not item: return
+
+        # 2. Determine Column
+        col = -1
+        labels = getattr(self, '_header_labels', ["Element", "Type", "Vis", "Opacity"])
+        curr_x = 0
+        for i in range(len(labels)):
+            col_w = self._header.sectionSize(i, self._rect.width, len(labels))
+            if curr_x <= mx < curr_x + col_w:
+                col = i
+                break
+            curr_x += col_w
+        
+        if col == -1: return
+        local_col_x = mx - curr_x + self._header.sectionSize(col, self._rect.width, len(labels)) # Correcting x relative to col start
+
+        # 3. Handle Special Interactive Zones
+        if col == 0:
+            # Check for Expansion Arrow click
+            # We need the level to know the arrow offset
+            def get_level(curr):
+                lvl = 0
+                p = curr.parent()
+                while p: lvl += 1; p = p.parent()
+                return lvl
+            
+            level = get_level(item)
+            indent = level * 16
+            
+            # Use same arrow_rect logic as in _draw
+            if item.childCount() > 0:
+                # Simple hit test: if click is in the indent zone (arrow is at indent..indent+16)
+                if mx < indent + 20:
+                     item.setExpanded(not item.isExpanded())
+                     self.update()
+                     return
+
+        # Check for Checkbox click
+        check_state = item.checkState(col)
+        if check_state is not None:
+             # Very simple hit test for checkbox area
+             # Usually checkboxes are at some offset. Let's assume if you click the cell, it toggles it for now 
+             # (unless it's col 0 and not in the text area)
+             # But for Inspector, col 2 is JUST a checkbox.
+             new_state = Qt.CheckState.Unchecked if check_state == Qt.CheckState.Checked else Qt.CheckState.Checked
+             item.setCheckState(col, new_state)
+             self.itemChanged.emit(item, col)
+             self.update()
+             return
+
+        # 4. Standard Selection
+        if not (pygame.key.get_mods() & pygame.KMOD_CTRL):
             self.clearSelection()
-            item._selected = True
-            
-            # Check for visibility toggle (Column 2)
-            col_w = self._rect.width // 4 # Assume 4 columns
-            col = int(mx // col_w)
-            
-            self.itemSelectionChanged.emit()
-            if col == 2: # Vis column
-                 self.itemChanged.emit(item, 2)
+        
+        item.setSelected(not item.isSelected())
+        self.itemSelectionChanged.emit()
+        self.update()
 
 class QTreeWidgetItem:
     def __init__(self, parent=None, strings=None):
         self._parent, self._children, self._data, self._text = parent, [], {}, {}
         self._selected = False; self._expanded = True; self._flags = 0
+        self._check_states = {} # Specific storage for checkstates to allow None
         if isinstance(strings, list):
             for i, s in enumerate(strings): self.setText(i, s)
         elif isinstance(strings, str):
@@ -312,8 +373,8 @@ class QTreeWidgetItem:
     def setFlags(self, f): self._flags = f
     def isSelected(self): return self._selected
     def setSelected(self, b): self._selected = b
-    def checkState(self, column): return self._data.get(('check', column), Qt.CheckState.Unchecked)
-    def setCheckState(self, column, state): self._data[('check', column)] = state
+    def checkState(self, column): return self._check_states.get(column)
+    def setCheckState(self, column, state): self._check_states[column] = state
     def setExpanded(self, b): self._expanded = b
     def isExpanded(self): return self._expanded
     def data(self, c, r): return self._data.get((c, r))

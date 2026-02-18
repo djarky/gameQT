@@ -18,6 +18,7 @@ class QAbstractItemView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.selectionChanged = Signal()
+        self._scroll_y = 0
     def setDragDropMode(self, m): 
         self._drag_drop_mode = m
     def setSelectionMode(self, m): 
@@ -40,7 +41,12 @@ class QHeaderView:
     def sectionSize(self, index, total_w, count):
         mode = self._resize_modes.get(index, getattr(self, '_default_resize_mode', 0))
         if mode == 1: # Stretch
+            # Simple stretch: divide remaining space?
+            # For now, if anyone is Stretch, they take equal shares
             return total_w // count
+        if mode == 2: # ResizeToContents
+            # Fallback for now: smaller fixed width for columns like 'Vis'
+            return 60
         return total_w // count # Default fallback
 
 class QStyleOptionViewItem:
