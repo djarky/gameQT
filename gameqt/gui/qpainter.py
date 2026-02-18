@@ -158,53 +158,107 @@ class QPainter:
     def drawPixmap(self, *args):
         if not self._device: return
         # Handle different signatures: drawPixmap(rect, pixmap) or drawPixmap(x, y, pixmap)
+        # Get transform parameters
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+
         if len(args) == 2:
             rect, pixmap = args
             if pixmap.surface:
-                self._device.blit(pixmap.surface, (rect.x() if hasattr(rect, 'x') else rect[0], 
-                                                   rect.y() if hasattr(rect, 'y') else rect[1]))
+                # Calculate target rect in device/screen coordinates
+                x = rect.x() if hasattr(rect, 'x') and callable(rect.x) else getattr(rect, 'x', 0)
+                y = rect.y() if hasattr(rect, 'y') and callable(rect.y) else getattr(rect, 'y', 0)
+                w = rect.width() if hasattr(rect, 'width') and callable(rect.width) else getattr(rect, 'width', 0)
+                h = rect.height() if hasattr(rect, 'height') and callable(rect.height) else getattr(rect, 'height', 0)
+                
+                nx, ny = int(x * sx + tx), int(y * sy + ty)
+                nw, nh = max(1, int(w * sx)), max(1, int(h * sy))
+                
+                # Get scaled surface (cached in QPixmap)
+                scaled_surf = pixmap._get_scaled_surface(nw, nh) if hasattr(pixmap, '_get_scaled_surface') else None
+                if not scaled_surf and pixmap.surface:
+                     try: scaled_surf = pygame.transform.scale(pixmap.surface, (nw, nh))
+                     except: pass
+                
+                if scaled_surf:
+                    self._device.blit(scaled_surf, (nx, ny))
+
         elif len(args) == 3:
             x, y, pixmap = args
             if pixmap.surface:
-                self._device.blit(pixmap.surface, (x, y))
+                # Calculate target position and size
+                nx, ny = int(x * sx + tx), int(y * sy + ty)
+                nw = max(1, int(pixmap.width() * sx))
+                nh = max(1, int(pixmap.height() * sy))
+                
+                # Get scaled surface
+                scaled_surf = pixmap._get_scaled_surface(nw, nh) if hasattr(pixmap, '_get_scaled_surface') else None
+                if not scaled_surf:
+                     try: scaled_surf = pygame.transform.scale(pixmap.surface, (nw, nh))
+                     except: pass
+
+                if scaled_surf:
+                    self._device.blit(scaled_surf, (nx, ny))
     def drawText(self, *args):
         if not self._device: return
         # Handle different signatures: drawText(rect, flags, text) or drawText(x, y, text)
         from ..utils.text_renderer import render_text
+        # Get transform parameters
+        tx, ty = self._transform._m[6], self._transform._m[7]
+        sx, sy = self._transform._m[0], self._transform._m[4]
+        
+        # Calculate effective font size
+        # We use sy (vertical scale) as the primary scale for font size
+        effective_size = max(4, int(self._font._size * sy))
+        effective_font_family = self._font._family
+        
         if len(args) == 3:
             if isinstance(args[0], (int, float)):
                 # drawText(x, y, text)
                 x, y, text = args
-                p = self._transform.map(QPointF(x, y))
+                nx, ny = x * sx + tx, y * sy + ty
                 color = self._pen._color.to_pygame()
-                surface = render_text(str(text), self._font._family, self._font._size, color)
-                self._device.blit(surface, (p.x(), p.y()))
+                surface = render_text(str(text), effective_font_family, effective_size, color)
+                self._device.blit(surface, (nx, ny))
             else:
                 # drawText(rect, flags, text)
                 rect, flags, text = args
                 color = self._pen._color.to_pygame()
-                surface = render_text(str(text), self._font._family, self._font._size, color)
+                surface = render_text(str(text), effective_font_family, effective_size, color)
                 r = rect.toRect() if hasattr(rect, 'toRect') else rect
                 
-                # Alignment logic
-                tx = r.x() if hasattr(r, 'x') and callable(r.x) else getattr(r, 'x', 0)
-                ty = r.y() if hasattr(r, 'y') and callable(r.y) else getattr(r, 'y', 0)
+                # Alignment logic logic applied BEFORE transform or AFTER?
+                # Usually alignment is within the rect.
+                # So we transform the rect, then align within the transformed rect?
+                # OR align within the rect, then transform the result?
+                # Transform the rect first is safer.
+                
+                rx = r.x() if hasattr(r, 'x') and callable(r.x) else getattr(r, 'x', 0)
+                ry = r.y() if hasattr(r, 'y') and callable(r.y) else getattr(r, 'y', 0)
                 rw = r.width() if hasattr(r, 'width') and callable(r.width) else getattr(r, 'width', 0)
                 rh = r.height() if hasattr(r, 'height') and callable(r.height) else getattr(r, 'height', 0)
+                
+                # Transform rect
+                nrx, nry = rx * sx + tx, ry * sy + ty
+                nrw, nrh = rw * sx, rh * sy
+                
                 tw, th = surface.get_size()
                 
-                if flags & Qt.AlignmentFlag.AlignRight: tx = tx + rw - tw
-                elif flags & Qt.AlignmentFlag.AlignHCenter: tx = tx + (rw - tw) // 2
+                # Calculate aligned position in device coords
+                draw_x, draw_y = nrx, nry
                 
-                if flags & Qt.AlignmentFlag.AlignBottom: ty = ty + rh - th
-                elif flags & Qt.AlignmentFlag.AlignVCenter: ty = ty + (rh - th) // 2
+                if flags & Qt.AlignmentFlag.AlignRight: draw_x = nrx + nrw - tw
+                elif flags & Qt.AlignmentFlag.AlignHCenter: draw_x = nrx + (nrw - tw) // 2
                 
-                p = self._transform.map(QPointF(tx, ty))
-                self._device.blit(surface, (p.x(), p.y()))
+                if flags & Qt.AlignmentFlag.AlignBottom: draw_y = nry + nrh - th
+                elif flags & Qt.AlignmentFlag.AlignVCenter: draw_y = nry + (nrh - th) // 2
+                
+                self._device.blit(surface, (draw_x, draw_y))
+
         elif len(args) == 2:
             # drawText(point, text)
             point, text = args
-            p = self._transform.map(point)
+            nx, ny = point.x() * sx + tx, point.y() * sy + ty
             color = self._pen._color.to_pygame()
-            surface = render_text(str(text), self._font._family, self._font._size, color)
-            self._device.blit(surface, (p.x(), p.y()))
+            surface = render_text(str(text), effective_font_family, effective_size, color)
+            self._device.blit(surface, (nx, ny))
