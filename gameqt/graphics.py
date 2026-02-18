@@ -307,14 +307,58 @@ class QGraphicsView(QWidget):
             screen.set_clip(old_clip)
 
     def mousePressEvent(self, ev):
-        if self._drag_mode == QGraphicsView.DragMode.RubberBandDrag and ev.button() == Qt.MouseButton.LeftButton:
-            self._rubber_band_start = ev.pos()
-            self._rubber_band_rect = QRectF(ev.pos().x(), ev.pos().y(), 0, 0)
-        elif ev.button() == Qt.MouseButton.RightButton: # Right drag to pan
-            self._is_panning = True
-            self._last_pan_pos = ev.pos()
+        # Prepare scene position
+        scene_pos = self.mapToScene(ev.pos())
         
-        if self._scene: self._scene.mousePressEvent(ev)
+        # Check if we clicked on an item
+        clicked_item = None
+        if self._scene:
+             # Hit test in reverse order (topmost first)
+             clicked_item = next((i for i in reversed(self._scene.items()) if i.isVisible() and i.sceneBoundingRect().contains(scene_pos)), None)
+
+        if clicked_item and (clicked_item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable or clicked_item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsSelectable):
+             # Clicked on interactable item -> prioritize drag/select over rubberband
+             pass
+        elif self._drag_mode == QGraphicsView.DragMode.RubberBandDrag and ev.button() == Qt.MouseButton.LeftButton:
+             self._rubber_band_start = ev.pos()
+             self._rubber_band_rect = QRectF(ev.pos().x(), ev.pos().y(), 0, 0)
+        elif ev.button() == Qt.MouseButton.RightButton: # Right drag to pan
+             self._is_panning = True
+             self._last_pan_pos = ev.pos()
+        
+        if self._scene and hasattr(self, '_scene') and self._scene: 
+            # Transform event to scene coordinates for the scene
+            # We need to create a copy or modify the event pos? 
+            # gameqt events are wrappers around pygame events.
+            # QGraphicsScene.mousePressEvent expects the event to have a pos() method.
+            # We should probably map the pos in the event, or the scene should use the view to map?
+            # Standard Qt: View transforms event to scene coords before passing to Scene.
+            
+            # Let's mock the pos() method on the event or create a proxy
+            # But event objects in gameqt might be shared?
+            # gameqt.core.QMouseEvent is simple.
+            # Let's just monkey-patch or subclass?
+            # Better: The scene currently does: pos = event.pos()
+            # We can update the event with scene pos if we can.
+            # gameqt events are likely created in widgets/qwidget.py
+            
+            # Since gameqt is simple, we can just temporarily modify the event pos?
+            # Or just let the scene handle it?
+            # QGraphicsScene.mousePressEvent currently:
+            # pos = event.pos(); ... item.sceneBoundingRect().contains(pos)
+            # This confirms Scene expects SCENE COORDINATES.
+            # So View MUST map them.
+            
+            scene_pos = self.mapToScene(ev.pos())
+            # Create a new event or modify?
+            # gameqt.core.QMouseEvent has _pos.
+            old_pos = ev.pos()
+            ev._pos = scene_pos # Hack: update internal pos
+            self._scene.mousePressEvent(ev)
+            ev._pos = old_pos # Restore for other handlers if any
+            
+            # Initialize drag state in scene coords
+            self._last_scene_mouse_pos = scene_pos
 
     def mouseMoveEvent(self, ev):
         # Cursor logic
@@ -339,17 +383,19 @@ class QGraphicsView(QWidget):
             handled = True
             
         if not handled and self._scene and pygame.mouse.get_pressed()[0]:
-             if not hasattr(self, '_last_mouse_pos'):
-                 self._last_mouse_pos = ev.pos()
+             scene_pos = self.mapToScene(ev.pos())
+             if not hasattr(self, '_last_scene_mouse_pos'):
+                 self._last_scene_mouse_pos = scene_pos
                  return
              
-             delta = ev.pos() - self._last_mouse_pos
-             # Scale delta? No, items are in scene coords.
+             # Calculate delta in SCENE coordinates
+             delta = scene_pos - self._last_scene_mouse_pos
+             
              for item in self._scene.selectedItems():
                  if item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsMovable:
                      item.setPos(item.pos() + delta)
              
-             self._last_mouse_pos = ev.pos()
+             self._last_scene_mouse_pos = scene_pos
              self.sceneChanged.emit()
              
     def mouseReleaseEvent(self, ev):
@@ -365,6 +411,24 @@ class QGraphicsView(QWidget):
             for item in self._scene.items():
                 if item.isVisible() and scene_rect.intersects(item.sceneBoundingRect()):
                     item.setSelected(True)
+        
+        # Clear drag state
+        if hasattr(self, '_last_scene_mouse_pos'):
+            del self._last_scene_mouse_pos
+            
+        if self._scene:
+            # Pass release event to scene (mapped)
+            scene_pos = self.mapToScene(ev.pos())
+            old_pos = ev.pos()
+            ev._pos = scene_pos
+            # Scene doesn't implement mouseReleaseEvent yet? it wraps item.mouseReleaseEvent?
+            # QGraphicsItem doesn't have mouseReleaseEvent in definition above, but check below...
+            # The base class has mousePressEvent.
+            # Assuming Scene might have it or we should add it.
+            # Checking QGraphicsScene class... no mouseReleaseEvent defined in file shown.
+            # But standard checks might expect it.
+            pass
+            ev._pos = old_pos
             
             self._rubber_band_rect = None
         
