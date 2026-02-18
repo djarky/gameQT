@@ -289,7 +289,11 @@ class QGraphicsView(QWidget):
                 if item.isVisible():
                     # Only paint if item's scene bounding rect intersects visible scene area
                     if item.sceneBoundingRect().intersects(visible_rect):
+                        painter.save()
+                        if hasattr(item, 'opacity'):
+                            painter.setOpacity(item.opacity())
                         item.paint(painter, None, self)
+                        painter.restore()
             
             # Draw rubber band
             if self._rubber_band_rect:
