@@ -334,8 +334,6 @@ class QWidget(QObject):
                     if hasattr(self, 'mousePressEvent'): 
                         self.mousePressEvent(q_event)
                         q_event.accept()
-                    self.clicked.emit()
-                    q_event.accept() # Buttons should accept the event
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if hasattr(self, 'mouseReleaseEvent'): self.mouseReleaseEvent(q_event)
                 elif event.type == pygame.MOUSEMOTION:
