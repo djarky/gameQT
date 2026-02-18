@@ -34,7 +34,7 @@ class QLabel(QWidget):
         self._img_surf = None
         if getattr(self, '_text_format', 0) == Qt.TextFormat.RichText:
              import re
-             # Try to find an image tag
+             # Try to find an image tag (separate from main text flow for now)
              img_match = re.search(r'<img src="file:///([^"]+)"', text)
              if img_match:
                  path = img_match.group(1)
@@ -54,9 +54,12 @@ class QLabel(QWidget):
              if "<center>" in text.lower() or "align=\"center\"" in text.lower():
                  self._alignment = Qt.AlignmentFlag.AlignCenter
              
-             text = re.sub(r'<(br|/?p|/?div|/?h[1-6]|/?li)(\s+[^>]*)?>', '\n', text, flags=re.IGNORECASE)
-             # Strip other tags but keep content
-             text = re.sub(r'<[^>]+>', '', text)
+             # Use RichTextParser from qtextedit for consistent parsing
+             from .qtextedit import RichTextParser
+             parser = RichTextParser()
+             parser.feed(text)
+             self._doc_lines = parser.lines
+             text = "".join(["".join([s['text'] for s in l]) + "\n" for l in self._doc_lines])
         
         from ..utils.text_renderer import render_text, get_text_metrics
         f = self.font()
