@@ -210,7 +210,9 @@ class QApplication:
         
         for child in reversed(widget._children):
             if child.isVisible():
-                 # child rect is relative to widget
+                 # child rect is relative to widget. QGraphicsScene doesn't have _rect.
+                 if not hasattr(child, '_rect'): continue
+                 
                  child_abs_pos = pygame.Vector2(widget_offset) + pygame.Vector2(child._rect.topleft)
                  child_rect_abs = pygame.Rect(child_abs_pos.x, child_abs_pos.y, child._rect.width, child._rect.height)
                  if child_rect_abs.collidepoint(global_pos):

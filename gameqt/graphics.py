@@ -55,6 +55,13 @@ class QGraphicsScene(QObject):
         else:
             self.clearSelection()
 
+    def keyPressEvent(self, event):
+        if self._focus_item:
+            self._focus_item.keyPressEvent(event)
+    def keyReleaseEvent(self, event):
+        if self._focus_item and hasattr(self._focus_item, 'keyReleaseEvent'):
+            self._focus_item.keyReleaseEvent(event)
+
 class QGraphicsItem:
     class GraphicsItemFlag: ItemIsMovable = 1; ItemIsSelectable = 2; ItemIsFocusable = 4
     def __init__(self, parent=None):
@@ -263,6 +270,12 @@ class QGraphicsView(QWidget):
         sx = self._view_transform._m[0]
         sy = self._view_transform._m[4]
         return QPointF(p.x() * sx + tx, p.y() * sy + ty)
+    def keyPressEvent(self, event):
+        if self._scene:
+            self._scene.keyPressEvent(event)
+    def keyReleaseEvent(self, event):
+        if self._scene and hasattr(self._scene, 'keyReleaseEvent'):
+            self._scene.keyReleaseEvent(event)
     def _draw(self, pos):
         screen = self._get_screen()
         if self._scene and screen:
