@@ -44,10 +44,21 @@ class QWidget(QObject):
         self._rect.width, self._rect.height = w, h
         self._resized = True
         if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
-    def setGeometry(self, x, y, w, h):
+    def setGeometry(self, *args):
+        if len(args) == 1:
+            r = args[0]
+            if hasattr(r, 'x') and (hasattr(r, 'width') or hasattr(r, 'w')):
+                x = r.x() if callable(r.x) else r.x
+                y = r.y() if callable(r.y) else r.y
+                w = r.width() if hasattr(r, 'width') and callable(r.width) else (r.width if hasattr(r, 'width') else r.w)
+                h = r.height() if hasattr(r, 'height') and callable(r.height) else (r.height if hasattr(r, 'height') else r.h)
+            else:
+                x, y, w, h = r
+        else:
+            x, y, w, h = args
         self._rect = pygame.Rect(x, y, w, h)
         self._resized = True
-        if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, w, h))
+        if hasattr(self, '_layout') and self._layout: self._layout.arrange(pygame.Rect(0, 0, self._rect.width, self._rect.height))
     def rect(self): 
         from ..core import QRect
         return QRect(0, 0, self._rect.width, self._rect.height)
@@ -276,6 +287,7 @@ class QWidget(QObject):
     def isVisible(self): return self._visible
     def close(self): self.hide()
     def setLayout(self, layout): self._layout = layout; layout._parent = self
+    def setParent(self, parent): self._set_parent(parent)
     def _set_parent(self, parent):
         if self._parent and self in self._parent._children: self._parent._children.remove(self)
         if not parent and QApplication._instance and self not in QApplication._instance._windows: 

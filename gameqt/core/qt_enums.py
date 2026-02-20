@@ -33,6 +33,7 @@ class Qt:
         DisplayRole = 0
         DecorationRole = 1
         EditRole = 2
+        UserRole = 100
         ToolTipRole = 3
         StatusTipRole = 4
         WhatsThisRole = 5

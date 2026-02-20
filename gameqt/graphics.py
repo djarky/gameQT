@@ -149,6 +149,7 @@ class QGraphicsRectItem(QGraphicsItem):
     def boundingRect(self): return self._rect
     def paint(self, painter, option, widget):
         painter.save()
+        painter.setOpacity(self._opacity)
         painter.translate(self._pos.x(), self._pos.y())
         # Apply item transform if needed 
         
@@ -173,6 +174,7 @@ class QGraphicsEllipseItem(QGraphicsItem):
     def boundingRect(self): return self._rect
     def paint(self, painter, option, widget):
         painter.save()
+        painter.setOpacity(self._opacity)
         painter.translate(self._pos.x(), self._pos.y())
         painter.setPen(self._pen)
         painter.setBrush(self._brush)
@@ -190,6 +192,7 @@ class QGraphicsPixmapItem(QGraphicsItem):
     def paint(self, painter, option, widget):
         if self._pixmap:
             painter.save()
+            painter.setOpacity(self._opacity)
             painter.translate(self._pos.x(), self._pos.y())
             painter.drawPixmap(0, 0, self._pixmap)
             painter.restore()
@@ -214,6 +217,7 @@ class QGraphicsTextItem(QGraphicsItem):
     def boundingRect(self): return QRectF(0,0,100,20)
     def paint(self, painter, option, widget):
         painter.save()
+        painter.setOpacity(self._opacity)
         painter.translate(self._pos.x(), self._pos.y())
         painter.setFont(self._font)
         painter.setPen(QPen(self._color))
