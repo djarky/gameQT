@@ -183,6 +183,23 @@ class QApplication:
                             target.dropEvent(drop_event)
                             if drop_event.isAccepted():
                                  result = 1 # Copy/Move action
+                        else:
+                            mime = drag._mime_data
+                            if mime:
+                                from .widgets import QMessageBox
+                                if mime.hasText() or mime.hasImage():
+                                    msg = "Elemento arrastrado fuera del lienzo.\n¿Deseas copiarlo al portapapeles del sistema?"
+                                    ans = QMessageBox.question(
+                                        None, 
+                                        "Exportar Elemento", 
+                                        msg,
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                                    )
+                                    if ans == QMessageBox.StandardButton.Yes:
+                                        if mime.hasImage():
+                                            QApplication.clipboard().setImage(mime.imageData())
+                                        elif mime.hasText():
+                                            QApplication.clipboard().setText(mime.text())
                 
                 # Forward other events? (Paint)
             
